@@ -16,9 +16,8 @@ This repo ships two things:
 
 ## Quick Start
 
-You can do the manual installation without installing `uv` or `act-cli`.
-
-But it will be quicker to sync with this repo if you do so.
+You can do the manual installation without needing `uv` or `act-cli`.
+However, it will be quicker to sync with this repo if you use the manifest file.
 
 ### 1. Requirements
 
