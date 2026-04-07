@@ -7,11 +7,13 @@
 
 An LLM wiki that evolves with you. Based on [Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).
 
+[Chinese](README.zh-CN.md)
+
 This repo ships two things:
 
 | What | Path | Purpose |
 |------|------|---------|
-| **Skill** | `skills/llm-wiki/` | Agent skill (Claude Code / Cursor / Copilot) — INIT, INGEST, QUERY, UPDATE, LINT |
+| **Skill** | `skills/llm-wiki/` | Agent skill (OpenCode, Claude Code / Cursor / Copilot) — INIT, INGEST, QUERY, UPDATE, LINT |
 | **CLI** | `lwiki/` | Python CLI — scaffold wiki trees and track `raw/` drift |
 
 ## Quick Start
