@@ -72,3 +72,122 @@ def test_format_drift_empty() -> None:
 
     r = DriftResult(frozenset(), frozenset(), frozenset())
     assert "No changes" in format_drift_report(r)
+
+
+# --- Subdirectory support ---
+
+
+def test_scan_subdirectory(tmp_path: Path) -> None:
+    """Files in subdirectories are keyed by relative posix path."""
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    (raw / "top.md").write_text("top", encoding="utf-8")
+    sub = raw / "primary"
+    sub.mkdir()
+    (sub / "nested.md").write_text("nested", encoding="utf-8")
+
+    result = scan_directory(raw)
+    assert "top.md" in result
+    assert "primary/nested.md" in result
+    assert len(result) == 2
+
+
+def test_scan_no_key_collision(tmp_path: Path) -> None:
+    """Same filename in different subdirectories must both appear."""
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    dir_a = raw / "a"
+    dir_a.mkdir()
+    (dir_a / "notes.md").write_text("aaa", encoding="utf-8")
+    dir_b = raw / "b"
+    dir_b.mkdir()
+    (dir_b / "notes.md").write_text("bbb", encoding="utf-8")
+
+    result = scan_directory(raw)
+    assert "a/notes.md" in result
+    assert "b/notes.md" in result
+    assert result["a/notes.md"] != result["b/notes.md"]
+
+
+def test_scan_deeply_nested(tmp_path: Path) -> None:
+    """Recursion works beyond one level."""
+    raw = tmp_path / "raw"
+    deep = raw / "a" / "b" / "c"
+    deep.mkdir(parents=True)
+    (deep / "deep.md").write_text("deep", encoding="utf-8")
+
+    result = scan_directory(raw)
+    assert "a/b/c/deep.md" in result
+
+
+def test_scan_ignores_hidden_dirs(tmp_path: Path) -> None:
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    hidden = raw / ".hidden"
+    hidden.mkdir()
+    (hidden / "secret.md").write_text("s", encoding="utf-8")
+
+    result = scan_directory(raw)
+    assert len(result) == 0
+
+
+def test_drift_new_file_in_subdir(tmp_path: Path) -> None:
+    raw = tmp_path / "raw"
+    sub = raw / "sources"
+    sub.mkdir(parents=True)
+    (sub / "article.md").write_text("text", encoding="utf-8")
+
+    d = compute_drift(raw)
+    assert d.has_drift
+    assert "sources/article.md" in d.new_files
+
+
+def test_sync_and_status_with_subdirs(tmp_path: Path) -> None:
+    """Full round-trip: sync tracks subdirectory files, status is clean."""
+    raw = tmp_path / "raw"
+    sub = raw / "chapter1"
+    sub.mkdir(parents=True)
+    (raw / "intro.md").write_text("intro", encoding="utf-8")
+    (sub / "part1.md").write_text("part1", encoding="utf-8")
+
+    code, msg = run_raw_sync(raw)
+    assert code == 0
+    assert "2 files tracked" in msg
+
+    logged = read_log(raw / "files.log")
+    assert "intro.md" in logged
+    assert "chapter1/part1.md" in logged
+
+    code, msg = run_raw_status(raw)
+    assert code == 0
+    assert "No changes" in msg
+
+
+def test_status_modified_in_subdir(tmp_path: Path) -> None:
+    raw = tmp_path / "raw"
+    sub = raw / "notes"
+    sub.mkdir(parents=True)
+    (sub / "a.md").write_text("v1", encoding="utf-8")
+
+    run_raw_sync(raw)
+    (sub / "a.md").write_text("v2", encoding="utf-8")
+
+    code, msg = run_raw_status(raw)
+    assert code == 1
+    d = compute_drift(raw)
+    assert "notes/a.md" in d.modified_files
+
+
+def test_status_deleted_in_subdir(tmp_path: Path) -> None:
+    raw = tmp_path / "raw"
+    sub = raw / "old"
+    sub.mkdir(parents=True)
+    f = sub / "gone.md"
+    f.write_text("bye", encoding="utf-8")
+
+    run_raw_sync(raw)
+    f.unlink()
+
+    d = compute_drift(raw)
+    assert d.has_drift
+    assert "old/gone.md" in d.deleted_files
