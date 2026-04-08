@@ -27,6 +27,8 @@ def scan_directory(raw_dir: Path) -> dict[str, str]:
     for item in sorted(raw_dir.iterdir()):
         if item.is_file() and item.name not in IGNORED and not item.name.startswith("."):
             files[item.name] = sha256_of_file(item)
+        elif item.is_dir() and item.name not in IGNORED and not item.name.startswith("."):
+            files.update(scan_directory(item))
     return files
 
 
