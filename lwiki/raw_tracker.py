@@ -19,16 +19,21 @@ def sha256_of_file(filepath: Path) -> str:
     return h.hexdigest()
 
 
-def scan_directory(raw_dir: Path) -> dict[str, str]:
-    """Scan raw/ and return {filename: sha256} for all tracked files."""
+def scan_directory(raw_dir: Path, _base: Path | None = None) -> dict[str, str]:
+    """Scan raw/ recursively and return {relative_path: sha256} for all tracked files."""
     files: dict[str, str] = {}
     if not raw_dir.is_dir():
         return files
+    if _base is None:
+        _base = raw_dir
     for item in sorted(raw_dir.iterdir()):
-        if item.is_file() and item.name not in IGNORED and not item.name.startswith("."):
-            files[item.name] = sha256_of_file(item)
-        elif item.is_dir() and item.name not in IGNORED and not item.name.startswith("."):
-            files.update(scan_directory(item))
+        if item.name in IGNORED or item.name.startswith("."):
+            continue
+        if item.is_file():
+            rel = item.relative_to(_base).as_posix()
+            files[rel] = sha256_of_file(item)
+        elif item.is_dir():
+            files.update(scan_directory(item, _base))
     return files
 
 
