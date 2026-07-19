@@ -26,11 +26,14 @@ Fix these automatically without asking:
 - `[[slug]]` references where no corresponding file exists
 - Search wiki/ for a file with the same name elsewhere
   - Exactly one match → fix the path
-  - Zero or multiple matches → report to user
+  - Zero matches → leave the link as a forward reference (the backlink audit
+    and cascade update will resolve it once the target page exists)
+  - Multiple matches → report to user
 
 **Missing frontmatter**
-- Pages without required fields: title, type, tags, sources, updated
+- Pages without required fields: title, type, description, updated
 - Add missing fields with placeholder values
+- Pages missing recommended fields (tags, sources) — report only
 
 **Index inconsistencies**
 - File exists in wiki/ but missing from index.md → add entry with "(no summary)" placeholder
@@ -51,9 +54,16 @@ Report these findings without auto-fixing. Let the user decide:
 **Contradictions**
 - Two pages making conflicting claims about the same thing
 - Include exact quotes from both pages
+- If the contradictions involve external claims, check whether the pages
+  cite them under a `## Citations` section; uncited external claims are
+  more likely to be stale than cited ones — flag both.
 
 **Stale claims**
 - Pages not updated within 90 days that contain temporal language: "current", "latest", "recent", "state-of-the-art", or year literals two or more years old
+
+**Missing `description` on existing pages**
+- Pages created before the `description` field became required may lack one
+- Suggest a one-line summary based on the page body and offer to fill it in
 
 **Orphan pages**
 - Pages with zero inbound `[[slug]]` links (excluding index.md and overview.md)

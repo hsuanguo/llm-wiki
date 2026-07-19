@@ -1,8 +1,10 @@
 ---
 title: <Entity Name>
 type: entity
+description: <one-line summary used by index.md, search snippets, and previews>
 tags: [entity, <category: person|tool|org|product>]
 sources: [raw/<file1>.md]
+resource: <optional canonical URI for the underlying asset, e.g. homepage or official profile>
 updated: <today>
 ---
 

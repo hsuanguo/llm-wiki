@@ -1,8 +1,10 @@
 ---
 title: <Concept Name>
 type: concept
+description: <one-line summary used by index.md, search snippets, and previews>
 tags: [concept, <domain tags>]
 sources: [raw/<file1>.md]
+resource: <optional canonical URI for the underlying asset>
 updated: <today>
 ---
 

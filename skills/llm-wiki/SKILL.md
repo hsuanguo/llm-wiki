@@ -76,11 +76,14 @@ Page templates are in `templates/` — read the relevant template before creatin
 - [templates/index.md](templates/index.md) — index table format
 
 Common rules:
+- Every page carries frontmatter with at minimum `title`, `type`, `description`, and `updated` — `description` is the one-line summary used by `index.md`, search snippets, and previews, so populate it on create
 - Use `[[wikilinks]]` with plain filenames — no paths (e.g., `[[rag]]` not `[[concepts/rag]]`)
-- Start every page with a 1-2 sentence summary
+- Start every page with a 1-2 sentence summary in the body (frontmatter `description` is the structured form of the same idea)
 - Every page ends with a `## See Also` section for cross-references
+- Insight pages add a `## Citations` section for external sources (URLs, DOIs)
 - Slugs: lowercase, hyphen-separated (e.g., `attention-mechanism.md`)
 - Raw files: no date prefix in filename; dates tracked via frontmatter
+- Forward references (`[[not-yet-written]]`) are tolerated — the backlink audit and cascade update will resolve them
 
 ## Key Rules
 

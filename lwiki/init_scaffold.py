@@ -32,10 +32,30 @@ def render_agents_md(domain: str, source_types: str) -> str:
 {source_types}
 
 ## Conventions
-- All wiki pages use YAML frontmatter with: title, type, tags, sources, updated
-- Cross-references use [[wikilinks]] with plain filenames
+
+### Frontmatter contract
+
+Wiki pages use YAML frontmatter. Fields are tiered; only the required tier
+must be present on every page, the rest is soft guidance (similar to the
+OKF permissive conformance model).
+
+| Tier | Fields |
+|------|--------|
+| **Required** | `title`, `type`, `description`, `updated` |
+| **Recommended** | `tags`, `sources` |
+| **Optional** | `resource` (canonical URI for the underlying asset), `cited` (insight pages only — list of wiki page slugs cited) |
+
+`type` is the only field consumers use for routing. Pick descriptive,
+self-explanatory values (the standard set is `summary`, `concept`, `entity`,
+`insight`, `overview`); consumers MUST tolerate unknown values gracefully.
+
+### Other rules
+
+- Cross-references use [[wikilinks]] with plain filenames (no paths)
 - raw/ is immutable — never modify source documents
 - log.md is append-only
+- Forward references (`[[not-yet-written]]`) are tolerated — the backlink
+  audit and cascade update will resolve them
 - This schema co-evolves with use — suggest changes when conventions need updating
 """
 
@@ -81,6 +101,7 @@ def render_overview_md(domain: str, today: str) -> str:
     return f"""---
 title: Overview
 type: overview
+description: High-level synthesis across all sources — what we know about {domain} right now.
 tags: [overview, synthesis]
 sources: []
 updated: {today}
