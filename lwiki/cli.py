@@ -8,6 +8,7 @@ import typer
 
 from lwiki import __version__
 from lwiki.init_scaffold import DEFAULT_SOURCE_TYPES, init_wiki_tree
+from lwiki.okf_export import export_okf
 from lwiki.raw_tracker import run_raw_status, run_raw_sync
 from lwiki.structure import render_structure_text
 
@@ -18,6 +19,8 @@ app = typer.Typer(
 )
 raw_app = typer.Typer(help="Compare or sync raw/ with files.log")
 app.add_typer(raw_app, name="raw")
+export_app = typer.Typer(help="Export a wiki to external formats")
+app.add_typer(export_app, name="export")
 
 
 def _version_callback(value: bool) -> None:
@@ -129,6 +132,53 @@ def init_cmd(
 
 def main() -> None:
     app()
+
+
+@export_app.command("okf")
+def export_okf_cmd(
+    wiki: Path = typer.Argument(
+        Path("."),
+        help="Wiki root directory (must contain AGENTS.md or wiki/{index,log}.md)",
+        exists=False,
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        "-o",
+        help="Output bundle directory (created if missing; must be empty unless --force)",
+    ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        "-f",
+        help="Overwrite an existing non-empty output directory",
+    ),
+) -> None:
+    """Export the wiki as an OKF (Open Knowledge Format) bundle.
+
+    OKF v0.1 spec: https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md
+
+    The wiki is read-only; the bundle is written to ``out``. Cross-links are
+    rewritten from Obsidian ``[[slug]]`` to bundle-relative ``/path/to/x.md``,
+    and each directory gets an OKF-style ``index.md`` listing. Exits non-zero
+    if the wiki is missing, the output is non-empty without ``--force``, or
+    any concept file has unparseable frontmatter.
+    """
+    try:
+        result = export_okf(wiki.resolve(), out.resolve(), force=force)
+    except (FileNotFoundError, FileExistsError) as e:
+        typer.secho(str(e), err=True, fg=typer.colors.RED)
+        raise typer.Exit(2) from e
+
+    typer.secho(
+        f"Exported {result.concept_count} concept(s) to {result.bundle_dir} "
+        f"({result.rewritten_links} link(s) rewritten).",
+        fg=typer.colors.GREEN,
+    )
+    for w in result.ambiguous_warnings:
+        typer.secho(f"  ambiguous: {w}", fg=typer.colors.YELLOW)
+    for w in result.unresolved_warnings:
+        typer.secho(f"  unresolved: {w}", fg=typer.colors.YELLOW)
 
 
 if __name__ == "__main__":

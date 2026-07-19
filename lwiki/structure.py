@@ -26,6 +26,7 @@ Commands (install the `lwiki` CLI if missing):
   lwiki init <wiki-root> --domain \"...\" --sources \"...\"   create this layout + initial raw/files.log
   lwiki raw sync                                            from wiki root: refresh raw/files.log
   lwiki raw status                                          from wiki root: report drift (no write)
+  lwiki export okf <wiki-root> --out <bundle-dir>           publish the wiki as an OKF v0.1 bundle
 """
 
 
