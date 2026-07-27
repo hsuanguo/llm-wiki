@@ -37,9 +37,10 @@ For each piece of knowledge in the source, determine where it belongs. Apply thi
 
 **Decision logic (not mutually exclusive — a single source may trigger multiple actions):**
 
-- **Same core topic as existing page** → Merge into that page. Add the new raw file to `sources` frontmatter. Update affected sections.
-- **New concept/entity** → Create a new page. Name the file after the concept or entity, not the raw file.
+- **Same core topic as existing page** → Merge into that page. Add the new raw file to `sources` frontmatter. Update the `description` frontmatter if the page's one-line summary shifts. Update affected sections.
+- **New concept/entity** → Create a new page. Name the file after the concept or entity, not the raw file. Set `description` from the page's lead sentence before writing the body.
 - **Spans multiple pages** → Place primary content in the most relevant page. Add `[[wikilinks]]` and See Also cross-references to related pages.
+- **External asset (DOI, URL, canonical handle)** → Add or update the page's `resource:` frontmatter with the canonical URI, separate from `sources:` (which stays for raw-file lineage).
 
 **Handling contradictions:**
 - If the new source contradicts existing content, **annotate the disagreement with source attribution** — do not silently overwrite.
