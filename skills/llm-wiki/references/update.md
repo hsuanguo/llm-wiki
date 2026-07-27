@@ -41,6 +41,14 @@ Read current content in full. Propose the change:
 
 **Always include Source.** An edit without a source citation creates untraceability — future sessions won't know why the change was made.
 
+### 2a. Update Citations when External Claims Change
+
+If the update introduces or revises a claim backed by an external source, mirror that change in any `## Citations` section the page has:
+
+- For insight pages: update the numbered list at the bottom of the page so the inline claim stays anchored to its source.
+- For pages that don't already have a `## Citations` section but now contain an external claim, offer to add one.
+- Add or update the `resource:` frontmatter field with the canonical URI of the underlying asset when the page doesn't already have one.
+
 ### 3. Per-Page Confirmation
 
 Ask before writing each page. Do not batch-apply changes without per-page confirmation. The user may accept some changes and reject others.

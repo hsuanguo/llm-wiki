@@ -218,6 +218,22 @@ lwiki raw status    # 仅报告
 lwiki raw sync      # 更新 files.log
 ```
 
+### 7. 发布为 OKF Bundle（可选）
+
+OKF（Open Knowledge Format）是一个用于跨工具交换知识包的轻量规范。llm-wiki 默认保持以 Obsidian 为先，但你也可以将 wiki 发布为兼容 OKF v0.1 的 bundle：
+
+```bash
+lwiki export okf <wiki-root> --out <bundle-dir>
+```
+
+导出过程对 wiki 是只读的。它会把 Obsidian 风格的 `[[wikilinks]]` 重写为 bundle 相对路径的 `/path/to/x.md` 链接，移除 wiki 内部的 `sources:` / `cited:` 谱系信息，并以 OKF 的项目符号列表格式为每个目录生成 `index.md` 文件。`raw/` 通过符号链接放入 bundle（不复制内容）。若要覆盖已有的 bundle 目录，请添加 `--force`。
+
+```bash
+lwiki export okf --help   # 完整参数说明
+```
+
+参见 [OKF v0.1 规范](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) 了解消费者可以如何处理 bundle。
+
 ## 日常工作流
 
 | 你做的 | AI 做的 |

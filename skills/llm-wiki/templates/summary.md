@@ -1,8 +1,10 @@
 ---
 title: <topic>
 type: summary
+description: <one-line summary used by index.md, search snippets, and previews>
 tags: [<relevant tags>]
 sources: [raw/<file1>.md, raw/<file2>.md]
+resource: <canonical URI for the underlying asset, e.g. DOI or article URL>
 updated: <today>
 ---
 

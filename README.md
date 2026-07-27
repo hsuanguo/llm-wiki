@@ -217,6 +217,22 @@ lwiki raw status    # report only
 lwiki raw sync      # update files.log
 ```
 
+### 7. Publish as an OKF Bundle (Optional)
+
+OKF (Open Knowledge Format) is a lightweight spec for exchanging knowledge bundles across tools. llm-wiki stays Obsidian-first by default, but you can publish your wiki as a conformant OKF v0.1 bundle:
+
+```bash
+lwiki export okf <wiki-root> --out <bundle-dir>
+```
+
+The exporter is read-only on the wiki. It rewrites Obsidian `[[wikilinks]]` to bundle-relative `/path/to/x.md` links, drops wiki-internal `sources:` / `cited:` lineage, and emits per-directory `index.md` files in OKF's bullet-list format. `raw/` is symlinked into the bundle (no duplication). Add `--force` to overwrite an existing bundle directory.
+
+```bash
+lwiki export okf --help   # full flag reference
+```
+
+See the [OKF v0.1 spec](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) for what consumers can do with the bundle.
+
 ## Daily Workflow
 
 | You do | AI does |

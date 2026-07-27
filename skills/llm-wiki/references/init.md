@@ -30,11 +30,11 @@ That command creates the directories, **`AGENTS.md`** (domain schema), a thin **
 
 **Implemented by `lwiki init`** — same content shapes as this skill and [templates/index.md](../templates/index.md):
 
-- **`AGENTS.md`** — `# <Domain> Wiki Schema` with **Domain**, **Source Types** (from `--sources` or default), and **Conventions** (frontmatter, wikilinks, immutable `raw/`, append-only `log.md`, co-evolving schema). This is the file to edit for schema changes (also consumed by other agents).
+- **`AGENTS.md`** — `# <Domain> Wiki Schema` with **Domain**, **Source Types** (from `--sources` or default), and **Conventions** (frontmatter contract — required/recommended/optional tiers, wikilinks, immutable `raw/`, append-only `log.md`, forward-reference tolerance, co-evolving schema). This is the file to edit for schema changes (also consumed by other agents).
 - **`CLAUDE.md`** — Fixed stub: `@AGENTS.md` plus a short **LLM Wiki (Claude Code)** note so Claude Code loads the same instructions without duplicating them.
 - **`wiki/index.md`** — empty tables per category (Summaries, Concepts, Entities, Insights).
 - **`wiki/log.md`** — header + first `## [date] init | <domain>` entry.
-- **`wiki/overview.md`** — frontmatter + empty “Current Understanding” / “Open Questions” sections.
+- **`wiki/overview.md`** — frontmatter (including `description`) + empty “Current Understanding” / “Open Questions” sections.
 
 Edit **AGENTS.md** (and only adjust **CLAUDE.md** for Claude-specific add-ons). If `lwiki` could not be run (rare), follow the same two-file pattern by hand.
 

@@ -65,6 +65,8 @@ Write `insights/<slug>.md` using [templates/insight.md](../templates/insight.md)
 
 **Insights are point-in-time snapshots.** They capture analysis as of their creation date and are NOT updated by subsequent ingests or cascade updates. If the underlying source pages change, lint will flag the insight as potentially stale.
 
+When the analysis rests on external sources (URLs, DOIs, papers), populate the `## Citations` section at the bottom of the insight with a numbered list of links, and set the `resource:` frontmatter field to the canonical URI of the underlying asset if applicable.
+
 Then update related pages — Obsidian backlinks are NOT visible to LLM:
 1. Add reverse links to cited concepts/entities pages in their See Also section
 2. Update overview.md if the insight reveals new understanding

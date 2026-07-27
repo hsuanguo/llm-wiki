@@ -86,3 +86,30 @@ def test_init_index_no_empty_table_rows(tmp_path: Path) -> None:
             if all(c == "" for c in cells):
                 raise AssertionError(f"Empty table row found in index.md: {line!r}")
 
+
+def test_init_agents_md_frontmatter_contract(tmp_path: Path) -> None:
+    """AGENTS.md scaffold must declare the required/recommended/optional tiers
+    so the conformance contract is visible to non-LLM consumers."""
+    target = tmp_path / "contractwiki"
+    r = runner.invoke(app, ["init", str(target), "-d", "Test"])
+    assert r.exit_code == 0, r.output
+    agents = (target / "AGENTS.md").read_text(encoding="utf-8")
+    # Required tier must include the four required fields
+    assert "title" in agents and "type" in agents and "description" in agents and "updated" in agents
+    # Optional tier must mention resource
+    assert "resource" in agents
+    # Tolerance for forward references must be documented
+    assert "forward" in agents.lower() or "audit" in agents.lower()
+
+
+def test_init_overview_has_description(tmp_path: Path) -> None:
+    """overview.md scaffold must carry a `description:` field so the index
+    table and search snippets have a one-line summary from day one."""
+    target = tmp_path / "overviewwiki"
+    r = runner.invoke(app, ["init", str(target), "-d", "Greek History"])
+    assert r.exit_code == 0, r.output
+    overview = (target / "wiki" / "overview.md").read_text(encoding="utf-8")
+    assert overview.startswith("---")
+    assert "description:" in overview
+    assert "Greek History" in overview
+
