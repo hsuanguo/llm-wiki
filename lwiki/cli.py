@@ -174,26 +174,41 @@ def export_okf_cmd(
         "-f",
         help="Overwrite an existing non-empty output directory",
     ),
+    relative_links: bool = typer.Option(
+        False,
+        "--relative-links",
+        help=(
+            "Emit file-relative markdown links (../entities/foo.md) instead of "
+            "bundle-root-absolute links (/entities/foo.md). Use this when "
+            "serving the bundle to a renderer that doesn't follow the "
+            "leading-slash form."
+        ),
+    ),
 ) -> None:
     """Export the wiki as an OKF (Open Knowledge Format) bundle.
 
-    OKF v0.1 spec: https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md
+    OKF 0.2 spec: https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md
 
     The wiki is read-only; the bundle is written to ``out``. Cross-links are
-    rewritten from Obsidian ``[[slug]]`` to bundle-relative ``/path/to/x.md``,
-    and each directory gets an OKF-style ``index.md`` listing. Exits non-zero
-    if the wiki is missing, the output is non-empty without ``--force``, or
-    any concept file has unparseable frontmatter.
+    rewritten from Obsidian ``[[slug]]`` to either bundle-relative
+    ``/path/to/x.md`` (default) or file-relative ``../path/to/x.md``
+    (with ``--relative-links``). Each directory gets an OKF-style
+    ``index.md`` listing. Exits non-zero if the wiki is missing, the
+    output is non-empty without ``--force``, or any concept file has
+    unparseable frontmatter.
     """
     try:
-        result = export_okf(wiki.resolve(), out.resolve(), force=force)
+        result = export_okf(
+            wiki.resolve(), out.resolve(), force=force, relative_links=relative_links
+        )
     except (FileNotFoundError, FileExistsError) as e:
         typer.secho(str(e), err=True, fg=typer.colors.RED)
         raise typer.Exit(2) from e
 
     typer.secho(
         f"Exported {result.concept_count} concept(s) to {result.bundle_dir} "
-        f"({result.rewritten_links} link(s) rewritten).",
+        f"({result.rewritten_links} link(s) rewritten, "
+        f"{'relative' if relative_links else 'absolute'} links).",
         fg=typer.colors.GREEN,
     )
     for w in result.ambiguous_warnings:
