@@ -2,10 +2,17 @@
 
 The exporter is read-only on the source wiki: it walks ``wiki/``, rewrites
 ``[[wikilinks]]`` to bundle-relative markdown links, normalizes frontmatter
-into OKF's recommended shape, and emits per-directory ``index.md`` files
+into OKF 0.2's recommended shape, and emits per-directory ``index.md`` files
 in the OKF bullet-list format. It is the counterpart to the Obsidian-first
 templates in ``skills/llm-wiki/templates/``: llm-wiki stays Obsidian-native,
 OKF is the publishable projection.
+
+OKF 0.2 breaking changes vs 0.1 are reflected here:
+  * Content's last-change moves from ``timestamp`` to ``generated: {by, at}``
+  * Bundle root ``index.md`` declares ``okf_version: "0.2"``
+  * Per-source credibility signals live in the frontmatter ``sources`` list
+    (the wiki-internal raw-file lineage is dropped from the bundle, the
+    same way 0.1 dropped ``sources``/``cited``).
 
 Reference: https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md
 """
@@ -21,6 +28,12 @@ import yaml
 # llm-wiki concept subdirectories. The exporter mirrors them at the bundle
 # root; OKF does not require any specific hierarchy.
 WIKI_SUBDIRS: tuple[str, ...] = ("summaries", "concepts", "entities", "insights")
+
+# OKF 0.2 — declared on the bundle-root index.md frontmatter.
+OKF_VERSION = "0.2"
+
+# OKF 0.2 actor convention for `generated.by`. Tools are ``<name>/<version>``.
+GENERATED_BY = "llm-wiki/0.2"
 
 # Match [[slug]] or [[slug|display]], with optional #anchor. Group 1 is the
 # slug, group 2 (optional) is the display text.
@@ -42,6 +55,17 @@ class ConceptRecord:
     resource: str | None
     timestamp: str
     body: str
+
+
+def build_generated(timestamp: str, by: str = GENERATED_BY) -> dict[str, str]:
+    """OKF 0.2 ``generated: { by, at }`` mapping.
+
+    Returns an empty dict when ``timestamp`` is empty so concept pages with
+    no date still get a clean frontmatter block.
+    """
+    if not timestamp:
+        return {}
+    return {"by": by, "at": timestamp}
 
 
 @dataclass
@@ -266,8 +290,7 @@ def export_okf(wiki_root: Path, bundle_dir: Path, *, force: bool = False) -> Exp
 
     if not _wiki_root_is_valid(wiki_root):
         raise FileNotFoundError(
-            f"No wiki found at {wiki_root} "
-            "(missing AGENTS.md or wiki/index.md + wiki/log.md)"
+            f"No wiki found at {wiki_root} (missing AGENTS.md or wiki/index.md + wiki/log.md)"
         )
 
     if bundle_dir.exists():
@@ -306,8 +329,9 @@ def export_okf(wiki_root: Path, bundle_dir: Path, *, force: bool = False) -> Exp
             okf_fm["tags"] = c.tags
         if c.resource:
             okf_fm["resource"] = c.resource
-        if c.timestamp:
-            okf_fm["timestamp"] = c.timestamp
+        generated = build_generated(c.timestamp)
+        if generated:
+            okf_fm["generated"] = generated
 
         out_text = emit_frontmatter(okf_fm) + new_body.lstrip("\n")
         out_path.write_text(out_text, encoding="utf-8")
@@ -339,7 +363,7 @@ def export_okf(wiki_root: Path, bundle_dir: Path, *, force: bool = False) -> Exp
     # Inject okf_version frontmatter — only legal place for frontmatter in index.md.
     root_idx = bundle_dir / "index.md"
     current = root_idx.read_text(encoding="utf-8")
-    root_idx.write_text(emit_frontmatter({"okf_version": "0.1"}) + current, encoding="utf-8")
+    root_idx.write_text(emit_frontmatter({"okf_version": OKF_VERSION}) + current, encoding="utf-8")
 
     # Per-subdirectory index.md.
     for sub in WIKI_SUBDIRS:

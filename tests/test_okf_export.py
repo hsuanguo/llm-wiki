@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 import pytest
 
 from lwiki.okf_export import (
-    ConceptRecord,
-    ExportResult,
     build_slug_map,
     collect_concepts,
     emit_frontmatter,
@@ -209,9 +206,25 @@ def test_export_root_index_has_okf_version(tmp_path: Path) -> None:
     _make_sample_wiki(wiki)
     export_okf(wiki, bundle)
     text = (bundle / "index.md").read_text(encoding="utf-8")
-    # okf_version declared as the only place frontmatter is allowed in index.md
+    # okf_version declared as the only place frontmatter is allowed in index.md.
+    # OKF 0.2 bumped from "0.1" — see SPEC.md breaking changes.
     assert text.startswith("---\n")
-    assert "okf_version: '0.1'" in text or 'okf_version: "0.1"' in text
+    assert "okf_version: '0.2'" in text or 'okf_version: "0.2"' in text
+
+
+def test_export_concept_uses_okf02_generated_mapping(tmp_path: Path) -> None:
+    """OKF 0.2: last-change moves from ``timestamp`` to ``generated: {by, at}``."""
+    wiki = tmp_path / "wiki"
+    bundle = tmp_path / "bundle"
+    _make_sample_wiki(wiki)
+    export_okf(wiki, bundle)
+    rag = (bundle / "concepts" / "rag.md").read_text(encoding="utf-8")
+    fm = parse_frontmatter(rag)[0]
+    # New mapping is present and shaped per OKF 0.2.
+    assert "timestamp" not in fm
+    assert isinstance(fm.get("generated"), dict)
+    assert fm["generated"]["by"] == "llm-wiki/0.2"
+    assert fm["generated"]["at"] == "2026-07-02"
 
 
 def test_export_concept_frontmatter_omits_wiki_only_fields(tmp_path: Path) -> None:

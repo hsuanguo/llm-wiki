@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>llm-wiki — knowledge, kept</title>
+  <link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+  <header class="masthead">
+    <div class="masthead__band">
+      <span class="masthead__left">YOUR KNOWLEDGE, KEPT IN PLAIN TEXT</span>
+      <span class="masthead__right" id="masthead-meta">REVISED AS YOU INGEST</span>
+    </div>
+    <div class="masthead__brand">
+      <a href="#" id="brand-link" class="brand">llm<span class="brand__dot">.</span>wiki</a>
+      <div class="brand__auth" id="brand-auth">A vault for compound knowledge — OKF 0.2 native</div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar__section" data-view="wikis">
+        <h3 class="sidebar__heading">Wikis</h3>
+        <ul class="sidebar__list" id="wikis-list"></ul>
+        <button class="sidebar__action" id="btn-new-wiki">+ New wiki</button>
+      </div>
+
+      <div class="sidebar__section" data-view="wiki" hidden>
+        <h3 class="sidebar__heading">
+          <a href="#" id="back-to-wikis">← all wikis</a>
+        </h3>
+        <div class="sidebar__subhead" id="wiki-name">—</div>
+        <ul class="sidebar__list sidebar__list--sections" id="section-list"></ul>
+        <button class="sidebar__action" id="btn-new-page">+ New page</button>
+      </div>
+
+      <div class="sidebar__archive">
+        <h4 class="sidebar__archive-heading">Vault</h4>
+        <ul class="sidebar__list">
+          <li><a href="#" data-action="graph">graph view</a></li>
+          <li><a href="#" data-action="log">recent log</a></li>
+          <li><a href="#" data-action="export">export OKF 0.2</a></li>
+          <li><a href="#" data-action="raw">raw/ drift</a></li>
+        </ul>
+      </div>
+    </aside>
+
+    <section class="content" id="content">
+      <!-- rendered by app.js -->
+    </section>
+  </main>
+
+  <dialog id="modal" class="modal">
+    <form method="dialog" class="modal__inner" id="modal-form">
+      <h2 class="modal__title" id="modal-title">—</h2>
+      <div class="modal__body" id="modal-body"></div>
+      <div class="modal__actions">
+        <button value="cancel" class="btn btn--ghost">Cancel</button>
+        <button value="confirm" class="btn" id="modal-confirm">Confirm</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

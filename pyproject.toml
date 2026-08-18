@@ -20,7 +20,7 @@ dev = [
 ]
 
 [project.scripts]
-lwiki = "lwiki.cli:main"
+lwiki = "lwiki.cli:run"
 
 [tool.hatch.build.targets.wheel]
 packages = ["lwiki"]

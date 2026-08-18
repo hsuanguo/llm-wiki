@@ -130,7 +130,28 @@ def init_cmd(
     raise typer.Exit(code)
 
 
-def main() -> None:
+@app.command("serve")
+def serve_cmd(
+    root: Path = typer.Option(
+        Path("."),
+        "--root",
+        "-r",
+        help="Directory containing wiki folders (each with AGENTS.md).",
+    ),
+    host: str = typer.Option("127.0.0.1", "--host", help="Bind host for the HTTP server."),
+    port: int = typer.Option(8765, "--port", "-p", help="Bind port for the HTTP server."),
+) -> None:
+    """Start the llm-wiki web UI (server-rendered SPA, no extra deps)."""
+    from .server import run_server  # local import — keeps CLI startup fast
+
+    try:
+        run_server(root.resolve(), host=host, port=port)
+    except OSError as e:
+        typer.secho(f"failed to bind {host}:{port}: {e}", err=True, fg=typer.colors.RED)
+        raise typer.Exit(1) from e
+
+
+def run() -> None:
     app()
 
 

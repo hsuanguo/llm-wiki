@@ -95,7 +95,9 @@ def test_init_agents_md_frontmatter_contract(tmp_path: Path) -> None:
     assert r.exit_code == 0, r.output
     agents = (target / "AGENTS.md").read_text(encoding="utf-8")
     # Required tier must include the four required fields
-    assert "title" in agents and "type" in agents and "description" in agents and "updated" in agents
+    assert (
+        "title" in agents and "type" in agents and "description" in agents and "updated" in agents
+    )
     # Optional tier must mention resource
     assert "resource" in agents
     # Tolerance for forward references must be documented
@@ -112,4 +114,3 @@ def test_init_overview_has_description(tmp_path: Path) -> None:
     assert overview.startswith("---")
     assert "description:" in overview
     assert "Greek History" in overview
-
