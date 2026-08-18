@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 import pytest
 
 from lwiki.okf_export import (
-    ConceptRecord,
-    ExportResult,
     build_slug_map,
     collect_concepts,
     emit_frontmatter,
@@ -209,9 +206,25 @@ def test_export_root_index_has_okf_version(tmp_path: Path) -> None:
     _make_sample_wiki(wiki)
     export_okf(wiki, bundle)
     text = (bundle / "index.md").read_text(encoding="utf-8")
-    # okf_version declared as the only place frontmatter is allowed in index.md
+    # okf_version declared as the only place frontmatter is allowed in index.md.
+    # OKF 0.2 bumped from "0.1" — see SPEC.md breaking changes.
     assert text.startswith("---\n")
-    assert "okf_version: '0.1'" in text or 'okf_version: "0.1"' in text
+    assert "okf_version: '0.2'" in text or 'okf_version: "0.2"' in text
+
+
+def test_export_concept_uses_okf02_generated_mapping(tmp_path: Path) -> None:
+    """OKF 0.2: last-change moves from ``timestamp`` to ``generated: {by, at}``."""
+    wiki = tmp_path / "wiki"
+    bundle = tmp_path / "bundle"
+    _make_sample_wiki(wiki)
+    export_okf(wiki, bundle)
+    rag = (bundle / "concepts" / "rag.md").read_text(encoding="utf-8")
+    fm = parse_frontmatter(rag)[0]
+    # New mapping is present and shaped per OKF 0.2.
+    assert "timestamp" not in fm
+    assert isinstance(fm.get("generated"), dict)
+    assert fm["generated"]["by"] == "llm-wiki/0.2"
+    assert fm["generated"]["at"] == "2026-07-02"
 
 
 def test_export_concept_frontmatter_omits_wiki_only_fields(tmp_path: Path) -> None:
@@ -367,6 +380,120 @@ def test_wikilink_regex_matches() -> None:
         assert m is not None, f"failed to match: {text}"
         assert m.group(1) == expected_slug
         assert m.group(2) == expected_display
+
+
+# --- relative links (OKF 0.2 §6.1) ---
+
+
+def test_relative_path_helper() -> None:
+    from lwiki.okf_export import _relative_path
+
+    # overview.md → concepts/rag.md (same depth)
+    assert _relative_path(Path("overview.md"), Path("concepts/rag.md")) == "concepts/rag.md"
+    # concepts/democracy.md → entities/athens.md (sibling dir)
+    assert (
+        _relative_path(Path("concepts/democracy.md"), Path("entities/athens.md"))
+        == "../entities/athens.md"
+    )
+    # deeper subdir → same-depth sibling
+    assert (
+        _relative_path(Path("concepts/sub/page.md"), Path("concepts/other.md"))
+        == "../other.md"
+    )
+    # same file (rare but possible)
+    assert _relative_path(Path("a.md"), Path("a.md")) == "a.md"
+
+
+def test_rewrite_wikilinks_relative_mode() -> None:
+    body = "See [[rag]] and [[athens]]."
+    slug_map = {
+        "rag": ["concepts/rag.md"],
+        "athens": ["entities/athens.md"],
+    }
+    # From concepts/democracy.md: rag resolves same-dir → just "rag.md";
+    # athens is in a sibling dir → "../entities/athens.md".
+    new_body, n, _, _ = rewrite_wikilinks(
+        body, slug_map, "concepts",
+        absolute_links=False, source_path="concepts/democracy.md",
+    )
+    assert n == 2
+    assert "[rag](rag.md)" in new_body
+    assert "[athens](../entities/athens.md)" in new_body
+    # Leading-slash absolute form must not appear
+    assert "](/concepts/rag.md)" not in new_body
+    assert "](/entities/athens.md)" not in new_body
+
+
+def test_rewrite_wikilinks_relative_mode_cross_subdir() -> None:
+    """From summaries/intro.md, all resolved targets are sibling dirs → ../..."""
+    body = "Refers to [[rag]]."
+    slug_map = {"rag": ["concepts/rag.md"]}
+    new_body, n, _, _ = rewrite_wikilinks(
+        body, slug_map, "summaries",
+        absolute_links=False, source_path="summaries/intro.md",
+    )
+    assert n == 1
+    assert "[rag](../concepts/rag.md)" in new_body
+    assert "](/concepts/rag.md)" not in new_body
+
+
+def test_rewrite_wikilinks_absolute_mode_default() -> None:
+    body = "See [[rag]]."
+    slug_map = {"rag": ["concepts/rag.md"]}
+    new_body, _, _, _ = rewrite_wikilinks(body, slug_map, "concepts")
+    assert "[rag](/concepts/rag.md)" in new_body
+
+
+def test_export_relative_links_emits_file_relative_paths(tmp_path: Path) -> None:
+    wiki = tmp_path / "wiki"
+    bundle = tmp_path / "bundle"
+    _make_sample_wiki(wiki)
+    export_okf(wiki, bundle, relative_links=True)
+
+    # summaries/intro.md → concepts/rag.md becomes ../concepts/rag.md
+    intro = (bundle / "summaries" / "intro.md").read_text(encoding="utf-8")
+    assert "[rag](../concepts/rag.md)" in intro
+    # Leading-slash form should not appear (substring "](/concepts/" would catch absolute form)
+    assert "](/concepts/rag.md)" not in intro
+
+    # overview.md → concepts/rag.md (both at bundle root) becomes concepts/rag.md
+    overview = (bundle / "overview.md").read_text(encoding="utf-8")
+    assert "[rag](concepts/rag.md)" in overview
+    assert "](/concepts/rag.md)" not in overview
+
+    # Bundle index.md lists subdirs without leading slash
+    root_idx = (bundle / "index.md").read_text(encoding="utf-8")
+    assert "[concepts](concepts)" in root_idx
+    assert "[concepts](/concepts/)" not in root_idx
+
+
+def test_export_absolute_links_default_still_works(tmp_path: Path) -> None:
+    """Regression: --relative-links off keeps the OKF-spec-recommended absolute form."""
+    wiki = tmp_path / "wiki"
+    bundle = tmp_path / "bundle"
+    _make_sample_wiki(wiki)
+    export_okf(wiki, bundle, relative_links=False)
+    overview = (bundle / "overview.md").read_text(encoding="utf-8")
+    assert "[rag](/concepts/rag.md)" in overview
+
+
+def test_cli_export_okf_relative_links_flag(tmp_path: Path) -> None:
+    from typer.testing import CliRunner
+
+    from lwiki.cli import app
+
+    runner = CliRunner()
+    wiki = tmp_path / "wiki"
+    bundle = tmp_path / "bundle"
+    _make_sample_wiki(wiki)
+    r = runner.invoke(
+        app,
+        ["export", "okf", str(wiki), "--out", str(bundle), "--relative-links"],
+    )
+    assert r.exit_code == 0, r.output
+    assert "relative" in r.output
+    intro = (bundle / "summaries" / "intro.md").read_text(encoding="utf-8")
+    assert "[rag](../concepts/rag.md)" in intro
 
 
 # --- CLI integration ---

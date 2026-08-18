@@ -219,19 +219,43 @@ lwiki raw sync      # update files.log
 
 ### 7. Publish as an OKF Bundle (Optional)
 
-OKF (Open Knowledge Format) is a lightweight spec for exchanging knowledge bundles across tools. llm-wiki stays Obsidian-first by default, but you can publish your wiki as a conformant OKF v0.1 bundle:
+OKF (Open Knowledge Format) is a lightweight spec for exchanging knowledge bundles across tools. llm-wiki stays Obsidian-first by default, but you can publish your wiki as a conformant **OKF 0.2** bundle:
 
 ```bash
 lwiki export okf <wiki-root> --out <bundle-dir>
 ```
 
-The exporter is read-only on the wiki. It rewrites Obsidian `[[wikilinks]]` to bundle-relative `/path/to/x.md` links, drops wiki-internal `sources:` / `cited:` lineage, and emits per-directory `index.md` files in OKF's bullet-list format. `raw/` is symlinked into the bundle (no duplication). Add `--force` to overwrite an existing bundle directory.
+The exporter is read-only on the wiki. It rewrites Obsidian `[[wikilinks]]` to bundle-relative `/path/to/x.md` links, drops wiki-internal `sources:` / `cited:` lineage, and emits per-directory `index.md` files in OKF's bullet-list format. Bundle-root `index.md` declares `okf_version: "0.2"` and concept frontmatter uses `generated: { by, at }` per the 0.2 schema. `raw/` is symlinked into the bundle (no duplication). Add `--force` to overwrite an existing bundle directory.
 
 ```bash
 lwiki export okf --help   # full flag reference
 ```
 
-See the [OKF v0.1 spec](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) for what consumers can do with the bundle.
+See the [OKF 0.2 spec](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) for what consumers can do with the bundle.
+
+### 8. Web UI (Server)
+
+A built-in HTTP server exposes the vault over a browser — no extra dependencies (just `typer`, `pyyaml`, and the stdlib). It lists wikis, browses pages, edits them in place, and renders the wikilink graph.
+
+```bash
+lwiki serve --root /path/to/parent-of-wikis --port 8765
+# open http://127.0.0.1:8765
+```
+
+The server reads/writes the same on-disk layout (`AGENTS.md`, `wiki/<subdir>/*.md`) that the CLI uses, so the skill-driven workflow and the browser stay in sync. The UI is Obsidian-compatible: `[[wikilinks]]` are preserved on disk and rendered as anchors in the browser; frontmatter stays in the wiki shape. OKF 0.2 is the canonical publishable projection (`lwiki export okf`), independent of Obsidian but still fully supported.
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/wikis` | List wikis under the root |
+| `GET /api/wikis/<name>/pages` | List concept pages |
+| `GET /api/wikis/<name>/pages/<rel>` | Read one page (frontmatter + body) |
+| `PUT /api/wikis/<name>/pages/<rel>` | Create or overwrite a page |
+| `DELETE /api/wikis/<name>/pages/<rel>` | Delete a page |
+| `GET /api/wikis/<name>/graph` | Nodes + resolved wikilink edges |
+| `GET /api/wikis/<name>/log` | Tail of `wiki/log.md` |
+| `GET /api/wikis/<name>/raw` | `raw/` drift report |
+| `POST /api/wikis` | Init a new wiki from the UI |
+| `POST /api/wikis/<name>/raw/sync` | Refresh `raw/files.log` |
 
 ## Daily Workflow
 
@@ -260,6 +284,7 @@ Each wiki is fully independent with its own `AGENTS.md` schema. Agent loads the 
 - **Obsidian Web Clipper** is the fastest way to get articles into `raw/`
 - **Graph view** in Obsidian shows wiki structure — hubs, orphans, clusters
 - **Dataview** plugin lets you query pages by type, tags, or date
+- **`lwiki serve`** runs a zero-dep web UI over the same vault — handy when you want to browse or edit without launching Obsidian
 - You never write wiki pages yourself — AI handles all the maintenance
 
 ## License
