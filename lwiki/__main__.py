@@ -1,3 +1,3 @@
-from lwiki.cli import main
+from lwiki.cli import run
 
-main()
+run()
