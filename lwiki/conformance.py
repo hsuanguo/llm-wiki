@@ -79,13 +79,13 @@ class Violation:
 # Public API.
 
 
-def validate_bundle(bundle_dir: Path) -> list[Violation]:
+def validate_bundle(bundle_dir: Path | str) -> list[Violation]:
     """Walk ``bundle_dir`` and return every conformance finding.
 
     Empty bundles (just ``index.md`` with ``okf_version``) pass with no
     violations. A bundle that does not exist returns one ERROR.
     """
-    bundle_dir = bundle_dir.resolve()
+    bundle_dir = Path(bundle_dir).resolve()
     if not bundle_dir.is_dir():
         return [
             Violation(
@@ -213,10 +213,9 @@ def _check_one_file(path: Path, rel: str) -> list[Violation]:
     # Bundles may include README.md, AGENTS.md, or other top-level
     # convention files; those don't need frontmatter. Concept files
     # (top-level or in subdirs) do.
-    if not in_subdir and top not in {"", "overview.md"} and name not in {
-        "AGENTS.md",
-        "README.md",
-    }:
+    if name in {"AGENTS.md", "README.md"}:
+        return out
+    if not in_subdir and top not in {"", "overview.md"}:
         # Top-level files that aren't concept files are allowed but should
         # carry frontmatter if they're intended as concepts. Skip the type
         # requirement for these to avoid false positives.

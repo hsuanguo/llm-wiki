@@ -1,29 +1,41 @@
-"""Create a new wiki directory tree (LLM Wiki INIT)."""
+"""Scaffold a new OKF 0.2 bundle (``lwiki init``).
+
+The on-disk shape is a single OKF bundle — no ``wiki/`` wrapper.
+Conventions are documented in ``AGENTS.md`` at the bundle root, and
+``raw/files.log`` is created so drift tracking works on day one.
+"""
 
 from __future__ import annotations
 
 from datetime import date
 from pathlib import Path
 
+from .okf_export import OKF_VERSION
+from .raw_tracker import run_raw_sync
+
 # Default for AGENTS.md "Source Types" when `lwiki init` is run without `--sources`.
 DEFAULT_SOURCE_TYPES = "articles, URLs, papers"
 
-# Thin CLAUDE.md for Claude Code: imports AGENTS.md (see https://code.claude.com/docs/en/memory#agents-md).
-CLAUDE_MD_STUB = """@AGENTS.md
-
-## LLM Wiki (Claude Code)
-
-Domain schema and conventions live in **AGENTS.md** (co-edited with the wiki). This file is fixed: edit `AGENTS.md` to change rules; keep the `@AGENTS.md` import so Claude Code loads the same content as other agents.
-"""
+# Generator identifier for OKF 0.2 ``generated.by`` on scaffolded pages.
+GENERATED_BY = f"lwiki/{OKF_VERSION}"
 
 
-def wiki_markers_exist(wiki_root: Path) -> bool:
-    return (wiki_root / "wiki" / "index.md").is_file() and (wiki_root / "wiki" / "log.md").is_file()
+def bundle_markers_exist(bundle_root: Path) -> bool:
+    """An OKF bundle is initialised when the root index.md declares okf_version."""
+    index = bundle_root / "index.md"
+    if not index.is_file():
+        return False
+    text = index.read_text(encoding="utf-8")
+    return f"okf_version: {OKF_VERSION!r}" in text or f'okf_version: "{OKF_VERSION}"' in text
 
 
 def render_agents_md(domain: str, source_types: str) -> str:
     """Wiki domain schema — primary file for humans and agent-agnostic tooling."""
     return f"""# {domain} Wiki Schema
+
+This bundle is OKF 0.2 native. Every concept file is a self-describing
+markdown document with YAML frontmatter; cross-references are standard
+markdown links (no `[[wikilinks]]`).
 
 ## Domain
 {domain}
@@ -31,62 +43,49 @@ def render_agents_md(domain: str, source_types: str) -> str:
 ## Source Types
 {source_types}
 
-## Conventions
+## Frontmatter contract (OKF 0.2)
 
-### Frontmatter contract
-
-Wiki pages use YAML frontmatter. Fields are tiered; only the required tier
-must be present on every page, the rest is soft guidance (similar to the
-OKF permissive conformance model).
+Only `type` is strictly required by the OKF spec; the rest is recommended
+for a richer authoring experience and round-trips cleanly through the
+conformance validator.
 
 | Tier | Fields |
 |------|--------|
-| **Required** | `title`, `type`, `description`, `updated` |
-| **Recommended** | `tags`, `sources` |
-| **Optional** | `resource` (canonical URI for the underlying asset), `cited` (insight pages only — list of wiki page slugs cited) |
+| **Required** | `type` (one of `summary`, `concept`, `entity`, `insight`, `overview`, `attested-computation`) |
+| **Recommended** | `title`, `description`, `tags`, `generated: {{ by, at }}` |
+| **Optional** | `resource` (canonical URI), `sources` (list of credibility-shaped entries), `verified` (audit trail), `status` (`draft`/`stable`/`deprecated`), `usage_window` |
 
-`type` is the only field consumers use for routing. Pick descriptive,
-self-explanatory values (the standard set is `summary`, `concept`, `entity`,
-`insight`, `overview`); consumers MUST tolerate unknown values gracefully.
+OKF provenance (the `sources` list, `verified` audit, `generated` mapping)
+replaces the legacy wiki-internal `sources: [paths]`, `cited: [slugs]`,
+and `updated:` fields.
 
-### Other rules
+## Other rules
 
-- Cross-references use [[wikilinks]] with plain filenames (no paths)
-- raw/ is immutable — never modify source documents
-- log.md is append-only
-- Forward references (`[[not-yet-written]]`) are tolerated — the backlink
-  audit and cascade update will resolve them
+- Cross-references use markdown links: `[display](path)` (file-relative or `/`-prefixed). No `[[…]]`.
+- `raw/` is immutable — never modify source documents
+- `log.md` is append-only
+- The OKF-conformant shape means the bundle is the wiki; there is no separate export step
+- Forward references are tolerated — the cascade update will resolve them
 - This schema co-evolves with use — suggest changes when conventions need updating
 """
 
 
-def render_index_md(domain: str) -> str:
-    return f"""# Wiki Index — {domain}
+def render_root_index_md(domain: str) -> str:
+    """Bundle-root index.md — only place frontmatter is permitted in an index."""
+    return f"""---
+okf_version: '{OKF_VERSION}'
+---
 
-## Summaries
+# {domain} — Bundle Index
 
-| Page | Summary | Updated |
-|------|---------|---------|
-
-## Concepts
-
-| Page | Summary | Updated |
-|------|---------|---------|
-
-## Entities
-
-| Page | Summary | Updated |
-|------|---------|---------|
-
-## Insights
-
-| Page | Summary | Updated |
-|------|---------|---------|
+Use the per-directory indexes (`summaries/index.md`, `concepts/index.md`,
+`entities/index.md`, `insights/index.md`) to navigate. They are kept in
+sync as pages are added or updated.
 """
 
 
 def render_log_md(today: str, domain: str) -> str:
-    return f"""# Wiki Log
+    return f"""# Bundle Log
 
 Append-only. Format: `## [YYYY-MM-DD] <operation> | <title>`
 Quick view: `grep "^## \\[" log.md | tail -10`
@@ -103,8 +102,10 @@ title: Overview
 type: overview
 description: High-level synthesis across all sources — what we know about {domain} right now.
 tags: [overview, synthesis]
-sources: []
-updated: {today}
+generated:
+  by: {GENERATED_BY}
+  at: {today}
+status: draft
 ---
 
 # {domain} — Overview
@@ -125,35 +126,61 @@ updated: {today}
 """
 
 
+def render_readme(domain: str) -> str:
+    return f"""# {domain}
+
+This directory is an [OKF 0.2](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)
+knowledge bundle. Edit it directly — there is no separate "export" step.
+The bundle is the wiki.
+
+- `index.md` — bundle root, declares `okf_version`.
+- `log.md` — append-only operation log.
+- `overview.md` — high-level synthesis.
+- `AGENTS.md` — local conventions for humans and agents.
+- `summaries/`, `concepts/`, `entities/`, `insights/` — concept pages.
+- `raw/` — immutable source files (tracked by `raw/files.log`).
+
+Use `lwiki serve` to browse this bundle in the browser, `lwiki validate`
+to check conformance, and `lwiki migrate` to convert an older
+Obsidian-shaped wiki into this shape.
+"""
+
+
 def init_wiki_tree(
-    wiki_root: Path,
+    bundle_root: Path,
     *,
     domain: str,
     source_types: str,
     force: bool,
 ) -> None:
+    """Create an OKF 0.2 bundle at ``bundle_root``.
+
+    Hard cut from the legacy ``wiki/`` wrapper: concepts live at the bundle
+    root, `AGENTS.md` stays at the root, `raw/files.log` is created for
+    drift tracking, and the result passes `lwiki.conformance.validate_bundle`.
     """
-    Create wiki layout under wiki_root. Aligns with skills/llm-wiki INIT references.
-    Raises FileExistsError if wiki exists and force is False.
-    """
-    wiki_root = wiki_root.resolve()
-    if wiki_markers_exist(wiki_root) and not force:
+    bundle_root = bundle_root.resolve()
+    if bundle_markers_exist(bundle_root) and not force:
         raise FileExistsError(
-            f"Wiki already exists at {wiki_root} (found wiki/index.md and wiki/log.md). "
+            f"Bundle already exists at {bundle_root} (found okf_version in index.md). "
             "Use --force to overwrite."
         )
 
+    bundle_root.mkdir(parents=True, exist_ok=True)
     today = date.today().isoformat()
 
-    (wiki_root / "assets").mkdir(parents=True, exist_ok=True)
-    (wiki_root / "raw").mkdir(parents=True, exist_ok=True)
-    for sub in ("summaries", "concepts", "entities", "insights"):
-        (wiki_root / "wiki" / sub).mkdir(parents=True, exist_ok=True)
+    # Top-level files
+    (bundle_root / "index.md").write_text(render_root_index_md(domain), encoding="utf-8")
+    (bundle_root / "log.md").write_text(render_log_md(today, domain), encoding="utf-8")
+    (bundle_root / "overview.md").write_text(render_overview_md(domain, today), encoding="utf-8")
+    (bundle_root / "AGENTS.md").write_text(render_agents_md(domain, source_types), encoding="utf-8")
+    (bundle_root / "README.md").write_text(render_readme(domain), encoding="utf-8")
 
-    (wiki_root / "AGENTS.md").write_text(render_agents_md(domain, source_types), encoding="utf-8")
-    (wiki_root / "CLAUDE.md").write_text(CLAUDE_MD_STUB, encoding="utf-8")
-    (wiki_root / "wiki" / "index.md").write_text(render_index_md(domain), encoding="utf-8")
-    (wiki_root / "wiki" / "log.md").write_text(render_log_md(today, domain), encoding="utf-8")
-    (wiki_root / "wiki" / "overview.md").write_text(
-        render_overview_md(domain, today), encoding="utf-8"
-    )
+    # Concept subdirs
+    for sub in ("summaries", "concepts", "entities", "insights"):
+        (bundle_root / sub).mkdir(parents=True, exist_ok=True)
+
+    # raw/ + files.log
+    raw_dir = bundle_root / "raw"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    run_raw_sync(raw_dir)

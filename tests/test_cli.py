@@ -5,6 +5,7 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from lwiki.cli import app
+from lwiki.conformance import is_conformant, validate_bundle
 
 runner = CliRunner()
 
@@ -20,97 +21,118 @@ def test_raw_status_help() -> None:
     assert r.exit_code == 0
 
 
-def test_init_creates_wiki(tmp_path: Path) -> None:
-    target = tmp_path / "mywiki"
+# --- init (OKF-native) ---
+
+
+def test_init_creates_okf_bundle(tmp_path: Path) -> None:
+    target = tmp_path / "mybundle"
     r = runner.invoke(
         app,
         ["init", str(target), "--domain", "Test", "--sources", "urls"],
     )
     assert r.exit_code == 0, r.output
-    assert (target / "wiki" / "index.md").is_file()
+    # No wiki/ wrapper; concepts at the bundle root.
+    assert (target / "index.md").is_file()
+    assert (target / "log.md").is_file()
+    assert (target / "overview.md").is_file()
+    assert (target / "AGENTS.md").is_file()
     assert (target / "raw" / "files.log").is_file()
+    for sub in ("summaries", "concepts", "entities", "insights"):
+        assert (target / sub).is_dir(), f"{sub}/ not created"
+    assert not (target / "wiki").is_dir(), "wiki/ wrapper must be gone"
+
+
+def test_init_bundle_passes_conformance(tmp_path: Path) -> None:
+    target = tmp_path / "conformant"
+    runner.invoke(app, ["init", str(target), "-d", "Greek History"])
+    violations = validate_bundle(target)
+    assert is_conformant(violations), violations
+    # The only expected findings, if any, would be WARN / INFO — not ERROR.
+    assert all(v.level.value != "error" for v in violations)
 
 
 def test_init_refuses_double_init(tmp_path: Path) -> None:
-    target = tmp_path / "w"
+    target = tmp_path / "b"
     runner.invoke(app, ["init", str(target)])
     r = runner.invoke(app, ["init", str(target)])
     assert r.exit_code == 1
 
 
 def test_init_default_sources_in_agents(tmp_path: Path) -> None:
-    target = tmp_path / "wiki2"
+    target = tmp_path / "b2"
     r = runner.invoke(app, ["init", str(target), "-d", "Only Domain"])
     assert r.exit_code == 0, r.output
     agents = (target / "AGENTS.md").read_text(encoding="utf-8")
     assert "Only Domain" in agents
     assert "articles, URLs, papers" in agents
     assert "## Source Types" in agents
-    stub = (target / "CLAUDE.md").read_text(encoding="utf-8")
-    assert "@AGENTS.md" in stub
+
+
+def test_init_force_overwrites(tmp_path: Path) -> None:
+    target = tmp_path / "b3"
+    runner.invoke(app, ["init", str(target)])
+    r = runner.invoke(app, ["init", str(target), "--force"])
+    assert r.exit_code == 0
+
+
+# --- structure ---
 
 
 def test_structure_command() -> None:
     r = runner.invoke(app, ["structure"])
     assert r.exit_code == 0
     assert "AGENTS.md" in r.stdout
-    assert "CLAUDE.md" in r.stdout
-    assert "wiki/" in r.stdout
+    assert "index.md" in r.stdout
+    assert "raw/" in r.stdout
     assert "lwiki init" in r.stdout
+    # Legacy marker should not appear in the new layout.
+    assert "CLAUDE.md" not in r.stdout
+    assert "wiki/" not in r.stdout
 
 
-def test_init_creates_all_subdirectories(tmp_path: Path) -> None:
-    """lwiki init must create assets/, raw/, and all wiki/ subdirectories."""
-    target = tmp_path / "fullwiki"
-    r = runner.invoke(app, ["init", str(target), "-d", "Test"])
-    assert r.exit_code == 0, r.output
-    assert (target / "assets").is_dir()
-    assert (target / "raw").is_dir()
-    for sub in ("summaries", "concepts", "entities", "insights"):
-        assert (target / "wiki" / sub).is_dir(), f"wiki/{sub}/ not created"
+# --- index.md shape ---
 
 
-def test_init_index_no_empty_table_rows(tmp_path: Path) -> None:
-    """index.md tables should have header + separator only, no empty data rows."""
-    target = tmp_path / "indexwiki"
-    r = runner.invoke(app, ["init", str(target), "-d", "Test"])
-    assert r.exit_code == 0, r.output
-    index_content = (target / "wiki" / "index.md").read_text(encoding="utf-8")
-    # No lines that are just empty table cells like "| | | |"
-    for line in index_content.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("|") and stripped.endswith("|"):
-            # Table lines should be header, separator, or have actual content
-            cells = [c.strip() for c in stripped.strip("|").split("|")]
-            # Allow header row and separator row, reject all-empty data rows
-            if all(c == "" for c in cells):
-                raise AssertionError(f"Empty table row found in index.md: {line!r}")
+def test_init_root_index_has_okf_version(tmp_path: Path) -> None:
+    target = tmp_path / "b4"
+    runner.invoke(app, ["init", str(target)])
+    text = (target / "index.md").read_text(encoding="utf-8")
+    assert text.startswith("---\n")
+    assert "okf_version:" in text
+    assert "'0.2'" in text or '"0.2"' in text
 
 
-def test_init_agents_md_frontmatter_contract(tmp_path: Path) -> None:
-    """AGENTS.md scaffold must declare the required/recommended/optional tiers
-    so the conformance contract is visible to non-LLM consumers."""
-    target = tmp_path / "contractwiki"
-    r = runner.invoke(app, ["init", str(target), "-d", "Test"])
-    assert r.exit_code == 0, r.output
+# --- AGENTS.md ---
+
+
+def test_init_agents_md_documents_okf_contract(tmp_path: Path) -> None:
+    """AGENTS.md must declare the OKF 0.2 frontmatter contract so non-LLM
+    consumers see the schema up front."""
+    target = tmp_path / "b5"
+    runner.invoke(app, ["init", str(target), "-d", "Test"])
     agents = (target / "AGENTS.md").read_text(encoding="utf-8")
-    # Required tier must include the four required fields
-    assert (
-        "title" in agents and "type" in agents and "description" in agents and "updated" in agents
-    )
-    # Optional tier must mention resource
+    # Required tier mentions type
+    assert "type" in agents
+    # Recommended tier mentions generated
+    assert "generated" in agents
+    # Optional tier mentions resource
     assert "resource" in agents
-    # Tolerance for forward references must be documented
-    assert "forward" in agents.lower() or "audit" in agents.lower()
+    # Wikilink rules are explicitly dropped
+    assert "[[" not in agents or "no `[[" in agents or "no [[wikilinks]]" in agents
 
 
-def test_init_overview_has_description(tmp_path: Path) -> None:
-    """overview.md scaffold must carry a `description:` field so the index
-    table and search snippets have a one-line summary from day one."""
-    target = tmp_path / "overviewwiki"
-    r = runner.invoke(app, ["init", str(target), "-d", "Greek History"])
-    assert r.exit_code == 0, r.output
-    overview = (target / "wiki" / "overview.md").read_text(encoding="utf-8")
+# --- overview.md ---
+
+
+def test_init_overview_uses_okf_frontmatter(tmp_path: Path) -> None:
+    target = tmp_path / "b6"
+    runner.invoke(app, ["init", str(target), "-d", "Greek History"])
+    overview = (target / "overview.md").read_text(encoding="utf-8")
     assert overview.startswith("---")
+    assert "type: overview" in overview
     assert "description:" in overview
+    assert "generated:" in overview
+    assert "status:" in overview
     assert "Greek History" in overview
+    # The legacy ``updated:`` field must not appear.
+    assert "updated:" not in overview
