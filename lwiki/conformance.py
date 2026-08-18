@@ -213,7 +213,7 @@ def _check_one_file(path: Path, rel: str) -> list[Violation]:
     # Bundles may include README.md, AGENTS.md, or other top-level
     # convention files; those don't need frontmatter. Concept files
     # (top-level or in subdirs) do.
-    if name in {"AGENTS.md", "README.md"}:
+    if name in {"AGENTS.md", "CLAUDE.md", "README.md"}:
         return out
     if not in_subdir and top not in {"", "overview.md"}:
         # Top-level files that aren't concept files are allowed but should

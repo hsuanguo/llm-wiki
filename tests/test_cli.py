@@ -36,6 +36,7 @@ def test_init_creates_okf_bundle(tmp_path: Path) -> None:
     assert (target / "log.md").is_file()
     assert (target / "overview.md").is_file()
     assert (target / "AGENTS.md").is_file()
+    assert (target / "CLAUDE.md").is_file()
     assert (target / "raw" / "files.log").is_file()
     for sub in ("summaries", "concepts", "entities", "insights"):
         assert (target / sub).is_dir(), f"{sub}/ not created"
@@ -68,6 +69,16 @@ def test_init_default_sources_in_agents(tmp_path: Path) -> None:
     assert "## Source Types" in agents
 
 
+def test_init_claude_md_imports_agents_md(tmp_path: Path) -> None:
+    """CLAUDE.md must exist and import AGENTS.md so Claude Code loads the
+    OKF-native conventions from the same source as other agents."""
+    target = tmp_path / "b_claude"
+    runner.invoke(app, ["init", str(target)])
+    claude = (target / "CLAUDE.md").read_text(encoding="utf-8")
+    assert "@AGENTS.md" in claude
+    assert "AGENTS.md" in claude
+
+
 def test_init_force_overwrites(tmp_path: Path) -> None:
     target = tmp_path / "b3"
     runner.invoke(app, ["init", str(target)])
@@ -82,11 +93,11 @@ def test_structure_command() -> None:
     r = runner.invoke(app, ["structure"])
     assert r.exit_code == 0
     assert "AGENTS.md" in r.stdout
+    assert "CLAUDE.md" in r.stdout
     assert "index.md" in r.stdout
     assert "raw/" in r.stdout
     assert "lwiki init" in r.stdout
     # Legacy marker should not appear in the new layout.
-    assert "CLAUDE.md" not in r.stdout
     assert "wiki/" not in r.stdout
 
 

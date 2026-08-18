@@ -8,6 +8,7 @@ CANONICAL_BUNDLE_TREE = f"""<bundle-root>/
 ├── log.md                # Append-only operation log
 ├── overview.md           # High-level synthesis (top-level concept)
 ├── AGENTS.md             # Domain schema (editable; shared with non-Claude agents)
+├── CLAUDE.md             # Thin stub that imports @AGENTS.md for Claude Code
 ├── README.md             # Pointer doc (optional)
 ├── summaries/            # Source summaries
 ├── concepts/             # Concept pages

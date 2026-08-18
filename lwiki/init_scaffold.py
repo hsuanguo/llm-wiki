@@ -19,6 +19,18 @@ DEFAULT_SOURCE_TYPES = "articles, URLs, papers"
 # Generator identifier for OKF 0.2 ``generated.by`` on scaffolded pages.
 GENERATED_BY = f"lwiki/{OKF_VERSION}"
 
+# Thin CLAUDE.md for Claude Code: imports AGENTS.md so Claude Code loads the
+# same OKF-native conventions (per https://code.claude.com/docs/en/memory#agents-md).
+CLAUDE_MD_STUB = """@AGENTS.md
+
+## llm-wiki (Claude Code)
+
+This bundle is OKF 0.2 native. Domain schema, conventions, and the OKF
+frontmatter contract live in **AGENTS.md** (co-edited with the bundle).
+This file is fixed: edit `AGENTS.md` to change rules; keep the
+`@AGENTS.md` import so Claude Code loads the same content as other agents.
+"""
+
 
 def bundle_markers_exist(bundle_root: Path) -> bool:
     """An OKF bundle is initialised when the root index.md declares okf_version."""
@@ -174,6 +186,7 @@ def init_wiki_tree(
     (bundle_root / "log.md").write_text(render_log_md(today, domain), encoding="utf-8")
     (bundle_root / "overview.md").write_text(render_overview_md(domain, today), encoding="utf-8")
     (bundle_root / "AGENTS.md").write_text(render_agents_md(domain, source_types), encoding="utf-8")
+    (bundle_root / "CLAUDE.md").write_text(CLAUDE_MD_STUB, encoding="utf-8")
     (bundle_root / "README.md").write_text(render_readme(domain), encoding="utf-8")
 
     # Concept subdirs
