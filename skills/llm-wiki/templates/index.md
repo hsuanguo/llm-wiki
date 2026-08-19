@@ -1,25 +1,21 @@
-# Wiki Index — <domain>
+---
+okf_version: '0.2'
+---
+
+# Bundle Index — <domain>
 
 ## Summaries
 
-| Page | Summary | Updated |
-|------|---------|---------|
-| [[<slug>]] | <one-line summary> | <YYYY-MM-DD> |
+* [summary-slug](summaries/summary-slug.md) — <one-line summary>
 
 ## Concepts
 
-| Page | Summary | Updated |
-|------|---------|---------|
-| [[<slug>]] | <one-line summary> | <YYYY-MM-DD> |
+* [concept-slug](concepts/concept-slug.md) — <one-line summary>
 
 ## Entities
 
-| Page | Summary | Updated |
-|------|---------|---------|
-| [[<slug>]] | <one-line summary> | <YYYY-MM-DD> |
+* [entity-slug](entities/entity-slug.md) — <one-line summary>
 
 ## Insights
 
-| Page | Summary | Updated |
-|------|---------|---------|
-| [[<slug>]] | <one-line summary> | <YYYY-MM-DD> |
+* [insight-slug](insights/insight-slug.md) — <one-line summary>

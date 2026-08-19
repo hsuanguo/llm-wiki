@@ -147,3 +147,54 @@ def test_init_overview_uses_okf_frontmatter(tmp_path: Path) -> None:
     assert "Greek History" in overview
     # The legacy ``updated:`` field must not appear.
     assert "updated:" not in overview
+
+
+# --- validate ---
+
+
+def test_validate_passes_on_scaffold(tmp_path: Path) -> None:
+    target = tmp_path / "b7"
+    runner.invoke(app, ["init", str(target), "-d", "x"])
+    r = runner.invoke(app, ["validate", str(target)])
+    assert r.exit_code == 0, r.output
+    assert "OK" in r.output
+
+
+def test_validate_fails_on_missing_okf_version(tmp_path: Path) -> None:
+    target = tmp_path / "b8"
+    target.mkdir()
+    (target / "index.md").write_text("# no frontmatter\n", encoding="utf-8")
+    r = runner.invoke(app, ["validate", str(target)])
+    assert r.exit_code != 0
+
+
+# --- migrate ---
+
+
+def test_migrate_legacy_wiki(tmp_path: Path) -> None:
+    old = tmp_path / "old"
+    old.mkdir()
+    new = tmp_path / "new"
+    # Build a small legacy wiki
+    (old / "AGENTS.md").write_text("# x\n", encoding="utf-8")
+    (old / "CLAUDE.md").write_text("@AGENTS.md\n", encoding="utf-8")
+    (old / "raw").mkdir()
+    (old / "raw" / "files.log").write_text("# empty\n", encoding="utf-8")
+    (old / "wiki" / "concepts").mkdir(parents=True)
+    (old / "wiki" / "index.md").write_text("# idx\n", encoding="utf-8")
+    (old / "wiki" / "log.md").write_text("# log\n", encoding="utf-8")
+    (old / "wiki" / "overview.md").write_text(
+        "---\ntitle: Overview\ntype: overview\ndescription: x\n"
+        "updated: 2026-01-01\n---\n\nBody.\n",
+        encoding="utf-8",
+    )
+    (old / "wiki" / "concepts" / "democracy.md").write_text(
+        "---\ntitle: Democracy\ntype: concept\ndescription: x\n"
+        "updated: 2026-01-02\n---\n\nBody.\n",
+        encoding="utf-8",
+    )
+    r = runner.invoke(app, ["migrate", str(old), "--out", str(new)])
+    assert r.exit_code == 0, r.output
+    assert (new / "concepts" / "democracy.md").is_file()
+    assert (new / "index.md").is_file()
+    assert "Migrated" in r.output
