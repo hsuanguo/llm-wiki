@@ -19,35 +19,47 @@ Run **`lwiki validate`** from the bundle root. The CLI wraps `lwiki.conformance.
 
 Errors are non-negotiable — fix them before proceeding. Warnings and info items are noted in the report but not blockers.
 
-### 2. Optional: Raw Drift
+### 2. Auto-Fix the Recoverable
+
+Two classes of issue are auto-fixable without user input — both can survive a partial migration, so address them immediately:
+
+- **Broken `[[wikilinks]]`** — leftover from a partial `lwiki migrate`. Run `lwiki wikilink-rewrite <bundle>` (file-relative by default; `--absolute` for the OKF spec-recommended form). Re-run `lwiki validate` to confirm zero ambiguous / unresolved warnings.
+- **Broken `sources: [raw/...]` paths** — paths that no longer resolve in `raw/`. Scan the bundle for `sources` entries whose `resource` starts with `raw/` and whose file doesn't exist; remove or update them. (`lwiki raw status` will show raw drift separately; only the OKF `sources` entries pointing at `raw/` are in scope here.)
+
+Report each auto-fix in your reply ("rewrote 4 wikilinks, dropped 2 dead source references").
+
+### 3. Optional: Raw Drift
 
 Run **`lwiki raw status`** to check whether `raw/` files have changed since `raw/files.log` was last synced. If drift is reported, the user can choose to:
 
 - Run **`lwiki raw sync`** to refresh `files.log` (no source re-ingest)
 - Run a targeted **INGEST** on the changed files
 
-### 3. Heuristic Issues
+### 4. Heuristic Issues
 
 These aren't caught by the conformance validator. Walk the bundle and look for:
 
-| Category | Examples |
-|----------|----------|
-| Contradictions | Two pages disagree on a fact; cross-link them in `## See Also` and add a conflict note |
-| Stale claims | `generated.at` is more than ~6 months old and a relevant newer source is missing → propose an INGEST |
-| Orphan pages | A concept with no incoming links from any other concept → search the bundle for natural cross-references |
-| Missing cross-references | A new concept that should link to existing ones but doesn't → backlink audit |
-| Stale insights | Insight pages older than 6 months with outdated "current understanding" → propose a re-run |
+| Category | How to detect |
+|----------|---------------|
+| **Contradictions** | Two pages disagree on a fact; cross-link them in `## See Also` and add a conflict note |
+| **Stale claims (temporal)** | Pages older than 90 days with `generated.at` < cutoff, or pages using temporal keywords like "current", "latest", "recent", "state-of-the-art", or a year literal that no longer matches the present — propose an INGEST |
+| **Orphan pages** | A concept with no incoming links from any other concept → search the bundle for natural cross-references |
+| **Missing concept pages** | A slug referenced 3+ times across the bundle but with no dedicated page → propose a new concept or a redirect note |
+| **Coverage gaps from `overview.md`** | Each entry under `## Open Questions` is a candidate for a query → propose a QUERY |
+| **Missing cross-references** | A new concept that should link to existing ones but doesn't → backlink audit |
+| **Stale insights** | Insight pages older than 6 months with outdated "current understanding" → propose a re-run |
 
 Write the lint report to `insights/lint-<date>.md` so the user can scan it later. Use [templates/insight.md](../templates/insight.md) as the shape; tag it with `type: insight` and a topic tag of `lint`.
 
-### 4. Suggest Fixes
+### 5. Suggest Fixes
 
 Heuristic findings are **reports, not auto-fixes**. After writing the lint page, summarise each finding as a one-line actionable suggestion in your reply, and ask whether the user wants any of them applied via UPDATE.
 
-### 5. Report to User
+### 6. Report to User
 
 - Conformance summary: errors / warnings / info counts (from `lwiki validate`)
+- Auto-fix summary: wikilinks rewritten, dead source refs dropped
 - Drift summary: new / modified / deleted file counts (from `lwiki raw status`)
-- Heuristic findings: list of contradictions, staleness, orphans, missing cross-refs
+- Heuristic findings: list of contradictions, staleness, orphans, missing concepts, coverage gaps, missing cross-refs
 - Lint page path so the user can re-read it
 - Proposed next actions (none applied)

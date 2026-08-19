@@ -24,6 +24,18 @@ If the answer requires pages you haven't yet read, follow the markdown links —
 
 ### 3. Synthesise the Answer
 
+Match the answer shape to the question shape:
+
+| Question shape | Answer shape |
+|----------------|--------------|
+| Factual ("what is X") | Prose paragraph; cite one or two pages |
+| Comparison ("compare A and B") | Side-by-side table or short prose with explicit A-vs-B sentences; cite both |
+| How-it-works ("how does X do Y") | Numbered steps; cite the page that documents each step |
+| What-do-we-know ("what do we know about X") | Structured summary: facts (cited), open questions (cited to `overview.md`), contradictions (linked both ways) |
+| Gap-finding ("what's missing about X") | List of candidate topics, each marked "no page yet" or "page exists, expand to cover X" |
+
+After choosing the shape:
+
 - **Cite every claim** with a markdown link to the source page (`[foo](concepts/foo.md)` from `overview.md`; `[bar](../entities/bar.md)` from a sub-page; `/concepts/bar.md` is also valid)
 - **Note uncertainty** explicitly when a claim is sourced from a single page or contradicts another page in the bundle
 - **Stay inside the bundle.** If the question requires information that isn't in any page, say so and recommend a targeted ingest.

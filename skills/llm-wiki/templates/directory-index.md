@@ -19,3 +19,4 @@ okf_version: '0.2'
 ## Insights
 
 * [insight-slug](insights/insight-slug.md) — <one-line summary>
+

@@ -3,12 +3,14 @@ name: llm-wiki
 description: "Use this skill whenever work is wiki- or knowledge-base-shaped — especially if the user says wiki, knowledge base, vault, bundle, OKF, or raw/ in this project. Trigger on words such as `init wiki`, `add to wiki`, `ingest wiki`, or `lint wiki`, updating or revising wiki pages, and on domain-specific questions that should be answered from the wiki (what we know about X, compare A and B, gaps, contradictions) — not off-wiki trivia. Do not use for generic chat, unrelated code or tooling, or file operations with no wiki intent."
 metadata:
   author: hsuanguo
-  version: "2.0"
+  version: "0.2"
 ---
 
 # LLM Wiki
 
 An OKF 0.2 native knowledge bundle that evolves with you. The bundle IS the wiki — there is no separate "export" step. Authoring goes straight into the bundle; consumers (this skill, the CLI, the web UI, OKF readers) all see the same files.
+
+Inspired by [Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).
 
 ## How to work
 
@@ -68,7 +70,7 @@ All structural operations use the **`lwiki`** CLI. Never hand-edit `files.log` o
 | Check OKF 0.2 conformance | `lwiki validate` |
 | Browse / edit in browser | `lwiki serve --root <parent-of-bundles>` |
 | Convert a legacy Obsidian-shaped wiki | `lwiki migrate <old-wiki> --out <new-bundle>` |
-| Rewrite legacy `[[wikilinks]]` in place | `lwiki.wikilink_rewrite.rewrite_bundle(path)` (Python API) |
+| Rewrite legacy `[[wikilinks]]` in place | `lwiki.wikilink_rewrite.rewrite_bundle(bundle_dir: Path, *, absolute_links=False, write=True)` (Python API; both kwargs optional) |
 
 ## Page Conventions
 
@@ -78,7 +80,8 @@ Page templates are in `templates/` — read the relevant template before creatin
 - [templates/entity.md](templates/entity.md) — entity pages
 - [templates/insight.md](templates/insight.md) — insights (point-in-time snapshots, NOT cascade-updated)
 - [templates/attested-computation.md](templates/attested-computation.md) — OKF 0.2 attested computations (OKF §4.2)
-- [templates/index.md](templates/index.md) — bundle-root index format
+- [templates/root-index.md](templates/root-index.md) — bundle-root `index.md` (frontmatter `okf_version`)
+- [templates/directory-index.md](templates/directory-index.md) — per-directory index (`summaries/index.md`, `concepts/index.md`, etc.)
 
 Common rules:
 - Every page carries frontmatter with at minimum `type`. The OKF permissive contract: only `type` is required; `title`, `description`, `tags`, `generated: { by, at }`, `status` are recommended; `resource`, `sources` (credibility-shaped), `verified` (audit trail), `usage_window` are optional.
