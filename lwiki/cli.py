@@ -88,6 +88,42 @@ def checkout_alias(
     raise typer.Exit(code)
 
 
+@app.command("wikilink-rewrite")
+def wikilink_rewrite_cmd(
+    bundle: Path = typer.Argument(
+        Path("."),
+        help="OKF bundle root",
+        exists=False,
+    ),
+    absolute: bool = typer.Option(
+        False,
+        "--absolute",
+        help="Emit bundle-root-absolute links (/concepts/foo.md) instead of file-relative",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Report what would change without writing any files",
+    ),
+) -> None:
+    """Rewrite leftover ``[[wikilinks]]`` to standard markdown links."""
+    from .wikilink_rewrite import iter_warnings, rewrite_bundle
+
+    result = rewrite_bundle(
+        bundle.resolve(),
+        absolute_links=absolute,
+        write=not dry_run,
+    )
+    typer.secho(
+        f"{'Would rewrite' if dry_run else 'Rewritten'}: "
+        f"{result.links_rewritten} link(s) in {result.files_rewritten} of "
+        f"{result.files_scanned} file(s) in {result.bundle_dir}",
+        fg=typer.colors.GREEN,
+    )
+    for w in iter_warnings(result):
+        typer.secho(w, fg=typer.colors.YELLOW)
+
+
 @app.command("migrate")
 def migrate_cmd(
     old_wiki: Path = typer.Argument(

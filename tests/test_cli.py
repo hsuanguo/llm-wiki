@@ -171,6 +171,27 @@ def test_validate_fails_on_missing_okf_version(tmp_path: Path) -> None:
 # --- migrate ---
 
 
+def test_wikilink_rewrite_cli(tmp_path: Path) -> None:
+    bundle = tmp_path / "b"
+    bundle.mkdir()
+    (bundle / "index.md").write_text(
+        "---\nokf_version: '0.2'\n---\n", encoding="utf-8"
+    )
+    (bundle / "concepts").mkdir()
+    (bundle / "concepts" / "x.md").write_text(
+        "---\ntype: concept\ntitle: X\ndescription: x\n---\n\nSee [[y]].\n",
+        encoding="utf-8",
+    )
+    (bundle / "concepts" / "y.md").write_text(
+        "---\ntype: concept\ntitle: Y\ndescription: y\n---\n\n", encoding="utf-8"
+    )
+    r = runner.invoke(app, ["wikilink-rewrite", str(bundle)])
+    assert r.exit_code == 0, r.output
+    assert "Rewritten" in r.output or "rewritten" in r.output.lower()
+    body = (bundle / "concepts" / "x.md").read_text(encoding="utf-8")
+    assert "[y](y.md)" in body
+
+
 def test_migrate_legacy_wiki(tmp_path: Path) -> None:
     old = tmp_path / "old"
     old.mkdir()
