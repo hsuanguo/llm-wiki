@@ -2,7 +2,7 @@
 
 <p align="center">
   <img src="assets/logo.svg" alt="llm-wiki" width="480" /><br />
-  <sub>OKF 0.2 native knowledge bundle that evolves with you</sub>
+  <sub>Personal knowledge base that evolves with you</sub>
 </p>
 
 An OKF-native personal knowledge base inspired by [Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f). The bundle IS the wiki — no separate "export" step.

@@ -25,7 +25,7 @@ CLAUDE_MD_STUB = """@AGENTS.md
 
 ## llm-wiki (Claude Code)
 
-This bundle is OKF 0.2 native. Domain schema, conventions, and the OKF
+This bundle is OKF native. Domain schema, conventions, and the OKF
 frontmatter contract live in **AGENTS.md** (co-edited with the bundle).
 This file is fixed: edit `AGENTS.md` to change rules; keep the
 `@AGENTS.md` import so Claude Code loads the same content as other agents.
@@ -45,7 +45,7 @@ def render_agents_md(domain: str, source_types: str) -> str:
     """Wiki domain schema — primary file for humans and agent-agnostic tooling."""
     return f"""# {domain} Wiki Schema
 
-This bundle is OKF 0.2 native. Every concept file is a self-describing
+This bundle is OKF native. Every concept file is a self-describing
 markdown document with YAML frontmatter; cross-references are standard
 markdown links (no `[[wikilinks]]`).
 

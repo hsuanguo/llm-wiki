@@ -225,7 +225,7 @@ def convert(old_wiki: Path, new_bundle: Path, *, force: bool = False) -> Migrate
     # Write a fresh README pointer.
     (new_bundle / "README.md").write_text(
         f"# Bundle (migrated from {old_wiki.name})\n\n"
-        "This bundle is OKF 0.2 native. It was converted from a legacy\n"
+        "This bundle is OKF native. It was converted from a legacy\n"
         "Obsidian-shaped llm-wiki. See `AGENTS.md` for local conventions.\n",
         encoding="utf-8",
     )

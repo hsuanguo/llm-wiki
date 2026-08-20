@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "lwiki"
 version = "0.2.0"
-description = "CLI for the OKF 0.2 native llm-wiki bundle: init, raw drift tracking, conformance validation, web UI server, legacy-wiki migration."
+description = "CLI for the OKF native llm-wiki bundle: init, raw drift tracking, conformance validation, web UI server, legacy-wiki migration."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

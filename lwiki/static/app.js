@@ -249,7 +249,7 @@ async function renderWikiIndex(c, wiki) {
     <h1 class="page-title">${escapeHtml(wiki)}</h1>
     <div class="page-meta">
       <span>${escapeHtml(data.description || "no description")}</span>
-      <span>OKF 0.2 native</span>
+      <span>OKF native</span>
     </div>
 
     <div class="stats">
@@ -276,15 +276,15 @@ function renderSection(name, items) {
     </h2>
     <div class="index-list">
       ${items
-        .map(
-          (p) => `
+      .map(
+        (p) => `
         <div class="index-row">
           <div class="index-row__title"><a href="${pageHash(state.currentWiki, p.rel_path)}">${escapeHtml(p.title || p.rel_path)}</a></div>
           <div class="index-row__desc">${escapeHtml(p.description || "(no description)")}</div>
           <div class="index-row__date">${escapeHtml(p.updated || "")}</div>
         </div>`,
-        )
-        .join("")}
+      )
+      .join("")}
     </div>`;
 }
 
@@ -377,7 +377,7 @@ function resolveMarkdownLink(href, currentRel, wiki) {
 
   try {
     currentRel = decodeURIComponent(currentRel || "");
-  } catch {}
+  } catch { }
 
   let anchor = "";
   let fileHref = href;
@@ -417,7 +417,7 @@ function resolveWikilink(slug, currentRel, wiki) {
   slug = slug.trim();
   try {
     currentRel = decodeURIComponent(currentRel || "");
-  } catch {}
+  } catch { }
   let anchor = "";
   const hashIdx = slug.indexOf("#");
   if (hashIdx !== -1) {
@@ -789,8 +789,8 @@ function openModal(title, fields) {
       (f) => `
       <label>${escapeHtml(f.label)}</label>
       ${f.textarea
-        ? `<textarea name="${f.name}" rows="4">${escapeHtml(f.value || "")}</textarea>`
-        : `<input name="${f.name}" value="${escapeHtml(f.value || "")}" placeholder="${escapeHtml(f.placeholder || "")}" />`}
+          ? `<textarea name="${f.name}" rows="4">${escapeHtml(f.value || "")}</textarea>`
+          : `<input name="${f.name}" value="${escapeHtml(f.value || "")}" placeholder="${escapeHtml(f.placeholder || "")}" />`}
     `,
     )
     .join("");

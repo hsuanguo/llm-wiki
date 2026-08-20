@@ -8,7 +8,7 @@ metadata:
 
 # LLM Wiki
 
-An OKF 0.2 native knowledge bundle that evolves with you. The bundle IS the wiki — there is no separate "export" step. Authoring goes straight into the bundle; consumers (this skill, the CLI, the web UI, OKF readers) all see the same files.
+An OKF native knowledge bundle that evolves with you. The bundle IS the wiki — there is no separate "export" step. Authoring goes straight into the bundle; consumers (this skill, the CLI, the web UI, OKF readers) all see the same files.
 
 Inspired by [Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).
 
