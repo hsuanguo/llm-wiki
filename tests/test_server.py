@@ -277,6 +277,19 @@ def test_http_wiki_pages_and_detail(server_setup) -> None:
     assert status == 200
     assert payload["frontmatter"]["title"] == "Democracy"
 
+    # Also works without .md extension
+    status, payload = _http_get(port, "/api/wikis/greek-history/pages/concepts/democracy")
+    assert status == 200
+    assert payload["frontmatter"]["title"] == "Democracy"
+    assert payload["rel_path"] == "concepts/democracy.md"
+
+
+def test_read_page_without_md_extension(server_setup) -> None:
+    _, wiki, _ = server_setup
+    data = read_page(wiki, "concepts/democracy")
+    assert data["rel_path"] == "concepts/democracy.md"
+    assert data["frontmatter"]["title"] == "Democracy"
+
 
 def test_http_write_and_delete_page(server_setup) -> None:
     _, _, port = server_setup

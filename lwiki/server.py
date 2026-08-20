@@ -244,6 +244,12 @@ def read_page(wiki_dir: Path, rel: str) -> dict[str, Any]:
         raise ValueError(f"reserved filename: {rel}")
     page_path = _resolve_page_path(wiki_dir, rel)
     if not page_path.is_file():
+        if not rel.endswith(".md"):
+            candidate = _resolve_page_path(wiki_dir, rel + ".md")
+            if candidate.is_file():
+                page_path = candidate
+                rel = rel + ".md"
+    if not page_path.is_file():
         raise FileNotFoundError(f"page not found: {rel}")
     text = page_path.read_text(encoding="utf-8")
     fm, body = parse_frontmatter(text)
