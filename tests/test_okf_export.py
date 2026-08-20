@@ -478,38 +478,35 @@ def test_export_absolute_links_default_still_works(tmp_path: Path) -> None:
 
 
 def test_cli_export_okf_relative_links_flag(tmp_path: Path) -> None:
+    """``--relative-links`` is no longer a flag — the command is now a verifier."""
     from typer.testing import CliRunner
 
     from lwiki.cli import app
 
     runner = CliRunner()
     wiki = tmp_path / "wiki"
-    bundle = tmp_path / "bundle"
     _make_sample_wiki(wiki)
     r = runner.invoke(
         app,
-        ["export", "okf", str(wiki), "--out", str(bundle), "--relative-links"],
+        ["export", "okf", str(wiki), "--out", "/tmp/nope", "--relative-links"],
     )
-    assert r.exit_code == 0, r.output
-    assert "relative" in r.output
-    intro = (bundle / "summaries" / "intro.md").read_text(encoding="utf-8")
-    assert "[rag](../concepts/rag.md)" in intro
+    assert r.exit_code != 0
 
 
 # --- CLI integration ---
 
 
-def test_cli_export_okf_creates_bundle(tmp_path: Path) -> None:
-    """End-to-end via Typer runner."""
+def test_cli_export_okf_validates(tmp_path: Path) -> None:
+    """End-to-end via Typer runner: ``lwiki export okf`` is now a conformance verifier."""
     from typer.testing import CliRunner
 
     from lwiki.cli import app
 
     runner = CliRunner()
     wiki = tmp_path / "wiki"
-    bundle = tmp_path / "bundle"
     _make_sample_wiki(wiki)
-    r = runner.invoke(app, ["export", "okf", str(wiki), "--out", str(bundle)])
-    assert r.exit_code == 0, r.output
-    assert (bundle / "index.md").is_file()
-    assert "Exported" in r.output
+    # The OKF exporter is gone; the command now reads the bundle root and
+    # validates. For the legacy-shape fixture the validator reports errors.
+    r = runner.invoke(app, ["export", "okf", str(wiki)])
+    assert r.exit_code != 0
+    assert "okf_version" in r.output or "wiki_wrapper" in r.output or "ERROR" in r.output

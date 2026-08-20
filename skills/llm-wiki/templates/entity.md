@@ -3,9 +3,14 @@ title: <Entity Name>
 type: entity
 description: <one-line summary used by index.md, search snippets, and previews>
 tags: [entity, <category: person|tool|org|product>]
-sources: [raw/<file1>.md]
+sources:
+  - resource: raw/<file1>.md
+    last_modified: <YYYY-MM-DD>
 resource: <optional canonical URI for the underlying asset, e.g. homepage or official profile>
-updated: <today>
+generated:
+  by: <actor convention>
+  at: <YYYY-MM-DD>
+status: draft
 ---
 
 # <Entity Name>
@@ -22,9 +27,9 @@ updated: <today>
 
 ## Appearances
 
-- [[<page-slug>]] — <one-line note on how this entity appears in that page>
+- [page-slug](../concepts/page-slug.md) — <one-line note on how this entity appears in that page>
 
 ## See Also
 
-- [[<related-concept>]]
-- [[<related-entity>]]
+- [related-concept](../concepts/related-concept.md)
+- [related-entity](../entities/related-entity.md)

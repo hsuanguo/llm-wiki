@@ -26,33 +26,41 @@ from lwiki.server import (
 
 @pytest.fixture
 def server_setup(tmp_path: Path):
-    """Build a small wiki and a live HTTP server bound to an ephemeral port."""
+    """Build a small OKF bundle and a live HTTP server bound to an ephemeral port."""
     wiki_root = tmp_path / "vault"
     wiki_root.mkdir()
     wiki = wiki_root / "greek-history"
-    (wiki / "wiki" / "concepts").mkdir(parents=True)
-    (wiki / "wiki" / "entities").mkdir(parents=True)
+    wiki.mkdir()
+    (wiki / "concepts").mkdir()
+    (wiki / "entities").mkdir()
     (wiki / "raw").mkdir()
     (wiki / "AGENTS.md").write_text("# Greek History Wiki Schema\n", encoding="utf-8")
-    (wiki / "wiki" / "index.md").write_text("# Wiki Index\n", encoding="utf-8")
-    (wiki / "wiki" / "log.md").write_text(
-        "# Wiki Log\n\n## [2026-01-01] init | greek-history\n",
+    (wiki / "CLAUDE.md").write_text("@AGENTS.md\n", encoding="utf-8")
+    (wiki / "index.md").write_text(
+        "---\nokf_version: '0.2'\n---\n\n# Bundle Index\n",
         encoding="utf-8",
     )
-    (wiki / "wiki" / "overview.md").write_text(
+    (wiki / "log.md").write_text(
+        "# Bundle Log\n\n## [2026-01-01] init | greek-history\n",
+        encoding="utf-8",
+    )
+    (wiki / "overview.md").write_text(
         "---\ntitle: Overview\ntype: overview\n"
-        "description: Big-picture synthesis.\nupdated: 2026-01-01\n---\n\n"
-        "See [[democracy]].\n",
+        "description: Big-picture synthesis.\n"
+        "generated: { by: 'lwiki/0.2', at: '2026-01-01' }\n---\n\n"
+        "See [democracy](concepts/democracy.md).\n",
         encoding="utf-8",
     )
-    (wiki / "wiki" / "concepts" / "democracy.md").write_text(
+    (wiki / "concepts" / "democracy.md").write_text(
         "---\ntitle: Democracy\ntype: concept\n"
-        "description: Athenian democracy.\ntags: [politics]\nupdated: 2026-01-02\n---\n\n"
-        "Refers to [[athens]].\n",
+        "description: Athenian democracy.\ntags: [politics]\n"
+        "generated: { by: 'lwiki/0.2', at: '2026-01-02' }\n---\n\n"
+        "Refers to [athens](../entities/athens.md).\n",
         encoding="utf-8",
     )
-    (wiki / "wiki" / "entities" / "athens.md").write_text(
-        "---\ntitle: Athens\ntype: entity\ndescription: City-state.\nupdated: 2026-01-03\n---\n\n"
+    (wiki / "entities" / "athens.md").write_text(
+        "---\ntitle: Athens\ntype: entity\ndescription: City-state.\n"
+        "generated: { by: 'lwiki/0.2', at: '2026-01-03' }\n---\n\n"
         "Body.\n",
         encoding="utf-8",
     )
@@ -111,9 +119,20 @@ def test_list_wikis_returns_enumerated_wikis(tmp_path: Path) -> None:
     wiki_root = tmp_path / "v"
     wiki_root.mkdir()
     (wiki_root / "alpha").mkdir()
-    (wiki_root / "alpha" / "AGENTS.md").write_text("# a\n")
+    (wiki_root / "alpha" / "index.md").write_text(
+        "---\nokf_version: '0.2'\n---\n", encoding="utf-8"
+    )
     (wiki_root / "no-wiki-here").mkdir()
     assert {w["name"] for w in list_wikis(wiki_root)} == {"alpha"}
+
+
+def test_list_wikis_ignores_non_bundle_dirs(tmp_path: Path) -> None:
+    """A folder without an ``okf_version`` index is not a bundle."""
+    wiki_root = tmp_path / "v"
+    wiki_root.mkdir()
+    (wiki_root / "alpha").mkdir()
+    (wiki_root / "alpha" / "AGENTS.md").write_text("# a\n")  # no index.md
+    assert list_wikis(wiki_root) == []
 
 
 def test_list_pages_includes_overview_and_concepts(server_setup) -> None:
@@ -136,9 +155,9 @@ def test_read_and_write_page_round_trip(server_setup) -> None:
             "type": "concept",
             "description": "Rule by few.",
             "tags": ["politics"],
-            "updated": "2026-02-01",
+            "generated": {"by": "lwiki/0.2", "at": "2026-02-01"},
         },
-        body="# Oligarchy\n\nRefers to [[athens]].\n",
+        body="# Oligarchy\n\nRefers to [athens](../entities/athens.md).\n",
     )
     data = read_page(wiki, new_path)
     assert data["frontmatter"]["title"] == "Oligarchy"
@@ -146,6 +165,62 @@ def test_read_and_write_page_round_trip(server_setup) -> None:
     delete_page(wiki, new_path)
     with pytest.raises(FileNotFoundError):
         read_page(wiki, new_path)
+
+
+def test_write_page_rejects_legacy_updated_field(server_setup) -> None:
+    _, wiki, _ = server_setup
+    with pytest.raises(ValueError, match="legacy 'updated:' field"):
+        write_page(
+            wiki,
+            "concepts/x.md",
+            frontmatter={
+                "type": "concept",
+                "title": "X",
+                "updated": "2026-02-01",  # legacy wiki field
+            },
+            body="body\n",
+        )
+
+
+def test_write_page_rejects_legacy_cited_field(server_setup) -> None:
+    _, wiki, _ = server_setup
+    with pytest.raises(ValueError, match="legacy 'cited:' field"):
+        write_page(
+            wiki,
+            "concepts/x.md",
+            frontmatter={
+                "type": "concept",
+                "title": "X",
+                "cited": ["foo"],  # legacy wiki field
+            },
+            body="body\n",
+        )
+
+
+def test_write_page_rejects_legacy_sources_paths(server_setup) -> None:
+    _, wiki, _ = server_setup
+    with pytest.raises(ValueError, match="legacy 'sources:"):
+        write_page(
+            wiki,
+            "concepts/x.md",
+            frontmatter={
+                "type": "concept",
+                "title": "X",
+                "sources": ["raw/foo.md"],  # legacy wiki field
+            },
+            body="body\n",
+        )
+
+
+def test_write_page_requires_type(server_setup) -> None:
+    _, wiki, _ = server_setup
+    with pytest.raises(ValueError, match="non-empty 'type'"):
+        write_page(
+            wiki,
+            "concepts/x.md",
+            frontmatter={"title": "X"},
+            body="body\n",
+        )
 
 
 def test_build_graph_resolves_wikilinks(server_setup) -> None:
@@ -202,6 +277,19 @@ def test_http_wiki_pages_and_detail(server_setup) -> None:
     assert status == 200
     assert payload["frontmatter"]["title"] == "Democracy"
 
+    # Also works without .md extension
+    status, payload = _http_get(port, "/api/wikis/greek-history/pages/concepts/democracy")
+    assert status == 200
+    assert payload["frontmatter"]["title"] == "Democracy"
+    assert payload["rel_path"] == "concepts/democracy.md"
+
+
+def test_read_page_without_md_extension(server_setup) -> None:
+    _, wiki, _ = server_setup
+    data = read_page(wiki, "concepts/democracy")
+    assert data["rel_path"] == "concepts/democracy.md"
+    assert data["frontmatter"]["title"] == "Democracy"
+
 
 def test_http_write_and_delete_page(server_setup) -> None:
     _, _, port = server_setup
@@ -216,7 +304,7 @@ def test_http_write_and_delete_page(server_setup) -> None:
                 "type": "concept",
                 "description": "Rule by few.",
                 "tags": ["politics"],
-                "updated": "2026-02-02",
+                "generated": {"by": "lwiki/0.2", "at": "2026-02-02"},
             },
             "body": "# Oligarchy\n",
         },
@@ -229,6 +317,51 @@ def test_http_write_and_delete_page(server_setup) -> None:
 
     status, _ = _http_send(port, f"/api/wikis/greek-history/pages/{rel}", "DELETE", None)
     assert status == 200
+
+
+def test_http_write_page_rejects_legacy_frontmatter(server_setup) -> None:
+    """Server rejects the legacy `updated:` field with a clear error."""
+    _, _, port = server_setup
+    status, payload = _http_send(
+        port,
+        "/api/wikis/greek-history/pages/concepts/x.md",
+        "PUT",
+        {
+            "frontmatter": {
+                "type": "concept",
+                "title": "X",
+                "updated": "2026-02-01",
+            },
+            "body": "body\n",
+        },
+    )
+    assert status == 400
+    assert "updated" in payload.get("error", "")
+
+
+def test_http_validate_endpoint_conformant(server_setup) -> None:
+    """`/api/wikis/<name>/validate` returns conformance violations."""
+    _, _, port = server_setup
+    status, payload = _http_get(port, "/api/wikis/greek-history/validate")
+    assert status == 200
+    assert payload["conformant"] is True
+    assert payload["violations"] == []
+
+
+def test_http_validate_endpoint_reports_errors(server_setup) -> None:
+    """Mutate a page to drop its `type` and confirm /validate flags it."""
+    wiki_root, _, port = server_setup
+    target = wiki_root / "greek-history" / "concepts" / "democracy.md"
+    target.write_text(
+        "---\ntitle: Democracy\n"
+        "generated: { by: 'lwiki/0.2', at: '2026-01-02' }\n---\n\nbody\n",
+        encoding="utf-8",
+    )
+    status, payload = _http_get(port, "/api/wikis/greek-history/validate")
+    assert status == 200
+    assert payload["conformant"] is False
+    codes = {v["code"] for v in payload["violations"]}
+    assert "concept.type_missing" in codes
 
 
 def test_http_init_wiki(tmp_path: Path) -> None:

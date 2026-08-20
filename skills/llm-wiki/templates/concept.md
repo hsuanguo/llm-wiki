@@ -3,9 +3,14 @@ title: <Concept Name>
 type: concept
 description: <one-line summary used by index.md, search snippets, and previews>
 tags: [concept, <domain tags>]
-sources: [raw/<file1>.md]
+sources:
+  - resource: raw/<file1>.md
+    last_modified: <YYYY-MM-DD>
 resource: <optional canonical URI for the underlying asset>
-updated: <today>
+generated:
+  by: <actor convention: name/version, human:id, or process:id>
+  at: <YYYY-MM-DD>
+status: draft
 ---
 
 # <Concept Name>
@@ -22,5 +27,5 @@ updated: <today>
 
 ## See Also
 
-- [[<related-concept>]]
-- [[<related-entity>]]
+- [related-concept](../concepts/related-concept.md)
+- [related-entity](../entities/related-entity.md)

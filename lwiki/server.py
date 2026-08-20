@@ -30,11 +30,46 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlparse
 
+from .conformance import validate_bundle
 from .okf_export import parse_frontmatter
 from .raw_tracker import run_raw_status, run_raw_sync
 
 WIKI_SUBDIRS: tuple[str, ...] = ("summaries", "concepts", "entities", "insights")
 WIKILINK_RE = re.compile(r"\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]")
+# Standard markdown link: `[text](path)` — captures the path. Leading
+# whitespace inside the text is allowed.
+MARKDOWN_LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
+
+
+def _resolve_markdown_link(source_path: str, href: str) -> str | None:
+    """Resolve a markdown link href to a bundle-relative target.
+
+    Returns ``None`` for absolute URLs (http://, https://, mailto:,
+    anchors starting with ``#``) or unparseable forms.
+    """
+    if not href:
+        return None
+    if href.startswith(("http://", "https://", "mailto:", "#", "/")):
+        # Absolute URLs and bundle-root-absolute links are out of scope
+        # for the graph (we'd need to round-trip the path again).
+        # Bundle-root-absolute (``/foo.md``) is left as a future
+        # enhancement; for now treat it as a no-edge target.
+        return None
+    if href.startswith("./"):
+        href = href[2:]
+    src_parts = list(Path(source_path).parts)
+    href_parts = href.split("/")
+    # Up-relative (``../``) walks up from src.
+    ups = 0
+    while href_parts and href_parts[0] == "..":
+        ups += 1
+        href_parts.pop(0)
+    base_parts = src_parts[:-1]  # drop the source filename
+    if ups > len(base_parts):
+        return None
+    target_parts = base_parts[: len(base_parts) - ups] + href_parts
+    target = "/".join(target_parts)
+    return target
 
 
 @dataclass
@@ -74,9 +109,16 @@ def _resolve_wiki(wiki_root: Path, name: str) -> Path:
 
 
 def _is_wiki(path: Path) -> bool:
-    return (path / "AGENTS.md").is_file() or (
-        (path / "wiki" / "index.md").is_file() and (path / "wiki" / "log.md").is_file()
-    )
+    """An OKF bundle is initialised when ``index.md`` declares ``okf_version``."""
+    index = path / "index.md"
+    if not index.is_file():
+        return False
+    try:
+        text = index.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    fm, _ = parse_frontmatter(text)
+    return bool(fm.get("okf_version"))
 
 
 def list_wikis(wiki_root: Path) -> list[dict[str, Any]]:
@@ -99,7 +141,7 @@ def list_wikis(wiki_root: Path) -> list[dict[str, Any]]:
 
 
 def _read_description(wiki_dir: Path) -> str:
-    overview = wiki_dir / "wiki" / "overview.md"
+    overview = wiki_dir / "overview.md"
     if not overview.is_file():
         return ""
     try:
@@ -111,9 +153,9 @@ def _read_description(wiki_dir: Path) -> str:
 
 def _count_pages(wiki_dir: Path) -> dict[str, int]:
     counts = {sub: 0 for sub in WIKI_SUBDIRS}
-    counts["overview"] = 1 if (wiki_dir / "wiki" / "overview.md").is_file() else 0
+    counts["overview"] = 1 if (wiki_dir / "overview.md").is_file() else 0
     for sub in WIKI_SUBDIRS:
-        sub_dir = wiki_dir / "wiki" / sub
+        sub_dir = wiki_dir / sub
         if not sub_dir.is_dir():
             continue
         counts[sub] = sum(1 for _ in sub_dir.glob("*.md"))
@@ -122,13 +164,13 @@ def _count_pages(wiki_dir: Path) -> dict[str, int]:
 
 
 def list_pages(wiki_dir: Path) -> list[dict[str, Any]]:
-    """List concept pages in a wiki (overview + each subdir)."""
+    """List concept pages in a bundle (overview + each subdir)."""
     pages: list[dict[str, Any]] = []
-    overview = wiki_dir / "wiki" / "overview.md"
+    overview = wiki_dir / "overview.md"
     if overview.is_file():
         pages.append(_page_meta(overview, "overview", wiki_dir))
     for sub in WIKI_SUBDIRS:
-        sub_dir = wiki_dir / "wiki" / sub
+        sub_dir = wiki_dir / sub
         if not sub_dir.is_dir():
             continue
         for md in sorted(sub_dir.glob("*.md")):
@@ -137,21 +179,21 @@ def list_pages(wiki_dir: Path) -> list[dict[str, Any]]:
 
 
 def _page_meta(path: Path, category: str, wiki_dir: Path) -> dict[str, Any]:
-    # rel_path is always relative to ``<wiki>/wiki/`` so the API and the
-    # server both see the same shape for overview vs category pages.
-    rel = path.resolve().relative_to((wiki_dir / "wiki").resolve()).as_posix()
+    # rel_path is always relative to the bundle root (no wiki/ wrapper).
+    rel = path.resolve().relative_to(wiki_dir.resolve()).as_posix()
     try:
         text = path.read_text(encoding="utf-8")
     except OSError:
         text = ""
     fm, _ = parse_frontmatter(text)
+    generated = fm.get("generated") if isinstance(fm.get("generated"), dict) else {}
     return {
         "rel_path": rel,
         "category": category,
         "title": str(fm.get("title", path.stem)),
         "type": str(fm.get("type", category.rstrip("s"))),
         "description": str(fm.get("description", "")),
-        "updated": str(fm.get("updated", "")),
+        "updated": str(generated.get("at", "")),
         "tags": [str(t) for t in (fm.get("tags") or [])]
         if isinstance(fm.get("tags"), list)
         else [],
@@ -159,12 +201,40 @@ def _page_meta(path: Path, category: str, wiki_dir: Path) -> dict[str, Any]:
 
 
 def _resolve_page_path(wiki_dir: Path, rel: str) -> Path:
-    """Resolve a wiki-relative page path against ``wiki_dir/wiki/``."""
-    wiki_root = (wiki_dir / "wiki").resolve()
-    candidate = (wiki_dir / "wiki" / rel).resolve()
-    if wiki_root != candidate and wiki_root not in candidate.parents:
-        raise ValueError(f"page path escapes wiki/: {rel}")
+    """Resolve a bundle-relative page path against the bundle root."""
+    bundle_root = wiki_dir.resolve()
+    candidate = (wiki_dir / rel).resolve()
+    if bundle_root != candidate and bundle_root not in candidate.parents:
+        raise ValueError(f"page path escapes bundle root: {rel}")
     return candidate
+
+
+def _enforce_okf_frontmatter(frontmatter: dict, rel: str) -> None:
+    """Reject legacy wiki-internal fields on writes.
+
+    OKF 0.2 replaces wiki-internal `updated:`, `sources: [paths]`, and
+    `cited:` shapes with `generated.{by,at}`, `sources` credibility list,
+    and `verified` audit trail. Surface a clear error so the editor can
+    migrate the field shape.
+    """
+    if "updated" in frontmatter:
+        raise ValueError(
+            f"{rel}: legacy 'updated:' field is no longer accepted; "
+            "use OKF 'generated: { by, at }' instead"
+        )
+    if "cited" in frontmatter:
+        raise ValueError(
+            f"{rel}: legacy 'cited:' field is no longer accepted; "
+            "use OKF 'verified: [{ by, at }]' instead"
+        )
+    sources = frontmatter.get("sources")
+    if isinstance(sources, list) and any(isinstance(s, str) for s in sources):
+        raise ValueError(
+            f"{rel}: legacy 'sources: [raw-path]' list is no longer accepted; "
+            "use OKF 'sources: [{ resource, last_modified, ... }]' instead"
+        )
+    if not frontmatter.get("type"):
+        raise ValueError(f"{rel}: frontmatter must declare a non-empty 'type'")
 
 
 def read_page(wiki_dir: Path, rel: str) -> dict[str, Any]:
@@ -173,6 +243,12 @@ def read_page(wiki_dir: Path, rel: str) -> dict[str, Any]:
     if rel in {"", "index.md", "log.md"}:
         raise ValueError(f"reserved filename: {rel}")
     page_path = _resolve_page_path(wiki_dir, rel)
+    if not page_path.is_file():
+        if not rel.endswith(".md"):
+            candidate = _resolve_page_path(wiki_dir, rel + ".md")
+            if candidate.is_file():
+                page_path = candidate
+                rel = rel + ".md"
     if not page_path.is_file():
         raise FileNotFoundError(f"page not found: {rel}")
     text = page_path.read_text(encoding="utf-8")
@@ -185,10 +261,15 @@ def read_page(wiki_dir: Path, rel: str) -> dict[str, Any]:
 
 
 def write_page(wiki_dir: Path, rel: str, *, frontmatter: dict, body: str) -> dict[str, Any]:
-    """Create or overwrite a page. Frontmatter is rendered as YAML."""
+    """Create or overwrite a page. Frontmatter is rendered as YAML.
+
+    Legacy wiki-internal fields (`updated`, `cited`, `sources: [paths]`) are
+    rejected — see ``_enforce_okf_frontmatter``.
+    """
     rel = rel.lstrip("/")
     if rel in {"", "index.md", "log.md"}:
         raise ValueError(f"reserved filename: {rel}")
+    _enforce_okf_frontmatter(frontmatter, rel)
     page_path = _resolve_page_path(wiki_dir, rel)
     page_path.parent.mkdir(parents=True, exist_ok=True)
     from .okf_export import emit_frontmatter  # local import — avoid heavy top-level
@@ -208,12 +289,18 @@ def delete_page(wiki_dir: Path, rel: str) -> None:
 
 
 def build_graph(wiki_dir: Path) -> dict[str, list[dict[str, Any]]]:
-    """Collect nodes (pages) and edges (resolved wikilinks) for the graph view."""
+    """Collect nodes (pages) and edges (resolved links) for the graph view.
+
+    Resolves both legacy ``[[wikilinks]]`` (slug-based) and standard
+    markdown links (`[text](path)`) — the latter is the OKF-native form.
+    """
     pages = list_pages(wiki_dir)
     slug_map: dict[str, list[str]] = {}
+    page_index: set[str] = set()
     for p in pages:
         rel = p["rel_path"]
         slug_map.setdefault(Path(rel).stem, []).append(rel)
+        page_index.add(rel)
 
     nodes = []
     edges: list[dict[str, Any]] = []
@@ -227,13 +314,15 @@ def build_graph(wiki_dir: Path) -> dict[str, list[dict[str, Any]]]:
                 "category": p["category"],
             }
         )
-        page_path = wiki_dir / "wiki" / p["rel_path"]
+        page_path = wiki_dir / p["rel_path"]
         try:
             text = page_path.read_text(encoding="utf-8")
         except OSError:
             continue
         _, body = parse_frontmatter(text)
         source_dir = p["rel_path"].split("/", 1)[0]
+
+        # Legacy `[[wikilinks]]` — slug-based resolution.
         for match in WIKILINK_RE.finditer(body):
             slug = match.group(1).strip()
             candidates = slug_map.get(slug, [])
@@ -246,16 +335,45 @@ def build_graph(wiki_dir: Path) -> dict[str, list[dict[str, Any]]]:
                 continue
             seen_edges.add(key)
             edges.append({"source": p["rel_path"], "target": target[0]})
+
+        # Standard markdown links — path-based, file-relative.
+        for match in MARKDOWN_LINK_RE.finditer(body):
+            target = _resolve_markdown_link(p["rel_path"], match.group(1))
+            if not target or target not in page_index:
+                continue
+            key = (p["rel_path"], target)
+            if key in seen_edges:
+                continue
+            seen_edges.add(key)
+            edges.append({"source": p["rel_path"], "target": target})
     return {"nodes": nodes, "edges": edges}
 
 
 def tail_log(wiki_dir: Path, limit: int = 20) -> str:
-    log = wiki_dir / "wiki" / "log.md"
+    log = wiki_dir / "log.md"
     if not log.is_file():
         return ""
     text = log.read_text(encoding="utf-8")
     lines = text.splitlines()
     return "\n".join(lines[-limit:])
+
+
+def validate_wiki(wiki_dir: Path) -> list[dict[str, Any]]:
+    """Run ``lwiki.conformance.validate_bundle`` against the bundle root.
+
+    Returns a list of plain-dict violations so the HTTP layer doesn't have
+    to think about dataclasses.
+    """
+    violations = validate_bundle(wiki_dir)
+    return [
+        {
+            "level": v.level.value,
+            "code": v.code,
+            "message": v.message,
+            "path": v.path,
+        }
+        for v in violations
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -391,6 +509,17 @@ class _Handler(BaseHTTPRequestHandler):
             _json(self, 200, build_graph(wiki))
         elif sub == "log":
             _json(self, 200, {"log": tail_log(wiki)})
+        elif sub == "validate":
+            violations = validate_wiki(wiki)
+            has_error = any(v["level"] == "error" for v in violations)
+            _json(
+                self,
+                200,
+                {
+                    "conformant": not has_error,
+                    "violations": violations,
+                },
+            )
         elif sub.startswith("pages/"):
             rel = unquote(sub[len("pages/") :])
             _json(self, 200, read_page(wiki, rel))

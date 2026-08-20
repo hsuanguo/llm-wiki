@@ -1,78 +1,55 @@
-# QUERY — Answer Questions from the Wiki
+# QUERY — Answer from the Bundle
 
 ## When to Run
 
-User asks a domain question, requests analysis, comparison, or synthesis from wiki content.
-
-## Pre-condition
-
-Wiki must be initialized. If not, tell user to run INIT first.
-
-## Core Rule
-
-**Never answer from general knowledge.** The wiki is the source of truth. Even if you think you know the answer, read the wiki pages first. The wiki may contain information that contradicts your training data — that contradiction is valuable signal.
+User asks a question that should be answered **strictly from bundle content**, not general knowledge. The phrase "what do we know about X" is the canonical trigger; a direct "answer this for me" is a signal too.
 
 ## Process
 
-### 1. Read Index First
+### 1. Scope the Question
 
-Scan `wiki/index.md` to identify relevant pages by topic, tags, and summaries.
+Re-read the question and identify:
 
-### 2. Read Relevant Pages
+- The **entities / concepts** involved (slug names to look up)
+- The **claim shape**: comparison? chronology? gap? contradiction? synthesis?
+- Whether the user wants citations / page anchors
 
-Read identified pages in full. Follow one level of `[[wikilinks]]` if they point to pages relevant to the question.
+### 2. Gather Bundle Context
 
-### 3. Synthesize Answer
+- Skim `index.md` to find candidate pages
+- Read the top relevant pages in full — including `## See Also` chains
+- For gap / contradiction queries, also pull the `insights/` folder
 
-- Ground every claim in wiki pages with `[[slug]]` citations
-- Note agreements and disagreements between pages
-- Flag gaps: "The wiki has no page on X" or "[[page]] doesn't cover Y yet"
-- Note confidence levels: well-supported (multiple sources) vs. single-source claims
-- Match format to question type:
-  - Factual → prose with citations
-  - Comparison → table
-  - How-it-works → numbered steps
-  - What-do-we-know → structured summary with open questions
-- Suggest follow-up sources to ingest or questions to investigate
+If the answer requires pages you haven't yet read, follow the markdown links — they are the bundle's signal that those pages are related.
 
-### 4. Report Issues Found in Existing Pages
+### 3. Synthesise the Answer
 
-Query does NOT modify existing pages. But if during reading you discover errors, outdated information, or inconsistencies in existing wiki pages, report them at the end of your answer:
+Match the answer shape to the question shape:
 
-> "While answering, I noticed the following issues in existing pages:
-> - [[rag]]: description of X appears outdated — newer source says Y
-> - [[langchain]] and [[llamaindex]] contradict each other on Z
->
-> Want me to run UPDATE to fix these?"
+| Question shape | Answer shape |
+|----------------|--------------|
+| Factual ("what is X") | Prose paragraph; cite one or two pages |
+| Comparison ("compare A and B") | Side-by-side table or short prose with explicit A-vs-B sentences; cite both |
+| How-it-works ("how does X do Y") | Numbered steps; cite the page that documents each step |
+| What-do-we-know ("what do we know about X") | Structured summary: facts (cited), open questions (cited to `overview.md`), contradictions (linked both ways) |
+| Gap-finding ("what's missing about X") | List of candidate topics, each marked "no page yet" or "page exists, expand to cover X" |
 
-Only proceed with UPDATE if the user confirms.
+After choosing the shape:
 
-### 5. Offer to Save as Insight (after answering and reporting issues)
+- **Cite every claim** with a markdown link to the source page (`[foo](concepts/foo.md)` from `overview.md`; `[bar](../entities/bar.md)` from a sub-page; `/concepts/bar.md` is also valid)
+- **Note uncertainty** explicitly when a claim is sourced from a single page or contradicts another page in the bundle
+- **Stay inside the bundle.** If the question requires information that isn't in any page, say so and recommend a targeted ingest.
 
-After answering, ask:
+### 4. Optional: Save as Insight
 
-> "Worth saving as `insights/<suggested-slug>.md`?"
+If the answer has standalone value (synthesis, comparison, gap analysis), propose to save it as an insight page using [templates/insight.md](../templates/insight.md). Insights are point-in-time snapshots, not cascade-updated, so a new ingest won't disturb them.
 
-Guidelines for when to save:
-- New synthesis across multiple pages → save
-- Simple lookup from one page → don't save
-- New connection or pattern discovered → save
-- Comparison or analysis that took effort → save
+Wait for user confirmation before writing the insight. If confirmed:
 
-### 6. If Saving: Create Insight and Update Related Pages
+- Set `type: insight` and `status: draft` initially
+- Add `verified: [{ by: <your actor>, at: <today> }]` once the user signs off
+- Append a `## [YYYY-MM-DD] query | <topic>` entry to `log.md`
 
-Write `insights/<slug>.md` using [templates/insight.md](../templates/insight.md).
+### 5. Optional: Report Issues
 
-**Insights are point-in-time snapshots.** They capture analysis as of their creation date and are NOT updated by subsequent ingests or cascade updates. If the underlying source pages change, lint will flag the insight as potentially stale.
-
-When the analysis rests on external sources (URLs, DOIs, papers), populate the `## Citations` section at the bottom of the insight with a numbered list of links, and set the `resource:` frontmatter field to the canonical URI of the underlying asset if applicable.
-
-Then update related pages — Obsidian backlinks are NOT visible to LLM:
-1. Add reverse links to cited concepts/entities pages in their See Also section
-2. Update overview.md if the insight reveals new understanding
-3. Add entry to index.md under Insights (table format per [templates/index.md](../templates/index.md))
-4. Append to log.md
-
-### 7. If Not Saving: No Log
-
-Do not write to log.md or index.md. Only log when wiki/ files are actually created or changed.
+If your read of the bundle surfaces problems — outdated facts, contradictions, an obvious gap in coverage — flag them in your reply and ask whether the user wants them fixed. **Don't auto-fix.** A query is read-side; fixing belongs to UPDATE or LINT.

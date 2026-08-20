@@ -3,10 +3,17 @@ title: <Descriptive Title>
 type: insight
 description: <one-line summary used by index.md, search snippets, and previews>
 tags: [insight, <topic tags>]
-cited: [<wiki page slugs cited in the analysis>]
-sources: []
+verified:
+  - by: <actor convention>
+    at: <YYYY-MM-DD>
+sources:
+  - resource: raw/<file1>.md
+    last_modified: <YYYY-MM-DD>
 resource: <optional canonical URI for the underlying asset, if any>
-updated: <today>
+generated:
+  by: <actor convention>
+  at: <YYYY-MM-DD>
+status: draft
 ---
 
 # <Descriptive Title>
@@ -15,11 +22,11 @@ updated: <today>
 
 ## Overview
 
-<One paragraph summarizing the question and key findings.>
+<One paragraph summarising the question and key findings.>
 
 ## Analysis
 
-<The synthesized answer with [[wikilink]] citations for every claim.>
+<The synthesised answer with [markdown link](../concepts/foo.md) citations for every claim.>
 
 ## Citations
 
@@ -32,5 +39,5 @@ External sources backing claims in this insight, numbered for reference. Mirror 
 
 ## See Also
 
-- [[<related-concept>]]
-- [[<related-entity>]]
+- [related-concept](../concepts/related-concept.md)
+- [related-entity](../entities/related-entity.md)
