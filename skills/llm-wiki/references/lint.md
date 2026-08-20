@@ -1,107 +1,65 @@
-# LINT — Wiki Health Check
+# LINT — Bundle Health Check
 
 ## When to Run
 
-User says "lint", "health check", "find gaps", "check the wiki", or similar. Recommended after every 5-10 ingests.
-
-## Pre-condition
-
-Wiki must be initialized. Read wiki/index.md and scan all page directories.
+User says "lint", "check the bundle", "any gaps?", or after a substantive ingest / update.
 
 ## Process
 
-### 1. Build Page Inventory
+### 1. Conformance Check
 
-Read index.md, overview.md, and all files in summaries/, concepts/, entities/, insights/. Build a map of:
-- All existing slugs (filenames without .md)
-- All `[[slug]]` references found in any page
-- All `sources` listed in frontmatter
-- Inbound link count per page
+Run **`lwiki validate`** from the bundle root. The CLI wraps `lwiki.conformance.validate_bundle` and reports:
 
-### 2. Deterministic Checks (Auto-Fix)
+- Bundle-root `index.md` missing or `okf_version` absent
+- Concept files with missing / unparseable frontmatter
+- Concept files with empty or unknown `type`
+- `generated.{by,at}` shape, `sources` shape, `verified` shape, `status` enum, attested-computation keys
+- Reserved filenames (`index.md`, `log.md`) outside the bundle root
+- Legacy `wiki/` wrapper with concept subdirs (rejected after migration)
 
-Fix these automatically without asking:
+Errors are non-negotiable — fix them before proceeding. Warnings and info items are noted in the report but not blockers.
 
-**Broken links**
-- `[[slug]]` references where no corresponding file exists
-- Search wiki/ for a file with the same name elsewhere
-  - Exactly one match → fix the path
-  - Zero matches → leave the link as a forward reference (the backlink audit
-    and cascade update will resolve it once the target page exists)
-  - Multiple matches → report to user
+### 2. Auto-Fix the Recoverable
 
-**Missing frontmatter**
-- Pages without required fields: title, type, description, updated
-- Add missing fields with placeholder values
-- Pages missing recommended fields (tags, sources) — report only
+Two classes of issue are auto-fixable without user input — both can survive a partial migration, so address them immediately:
 
-**Index inconsistencies**
-- File exists in wiki/ but missing from index.md → add entry with "(no summary)" placeholder
-- Index entry points to nonexistent file → mark as `[MISSING]`
+- **Broken `[[wikilinks]]`** — leftover from a partial `lwiki migrate`. Run `lwiki wikilink-rewrite <bundle>` (file-relative by default; `--absolute` for the OKF spec-recommended form). Re-run `lwiki validate` to confirm zero ambiguous / unresolved warnings.
+- **Broken `sources: [raw/...]` paths** — paths that no longer resolve in `raw/`. Scan the bundle for `sources` entries whose `resource` starts with `raw/` and whose file doesn't exist; remove or update them. (`lwiki raw status` will show raw drift separately; only the OKF `sources` entries pointing at `raw/` are in scope here.)
 
-**Broken raw references**
-- Links in `sources` frontmatter pointing to nonexistent raw/ files
-- Search raw/ for file with same name → fix if exactly one match, report otherwise
+Report each auto-fix in your reply ("rewrote 4 wikilinks, dropped 2 dead source references").
 
-**Raw vs files.log drift (optional)**
-- From wiki root: **`lwiki raw status`** (compares `raw/` to `files.log`, no write)
-- If there is drift, reconcile (ingest or **`lwiki raw sync`** after confirming `raw/` is correct)
+### 3. Optional: Raw Drift
 
-### 3. Heuristic Checks (Report Only)
+Run **`lwiki raw status`** to check whether `raw/` files have changed since `raw/files.log` was last synced. If drift is reported, the user can choose to:
 
-Report these findings without auto-fixing. Let the user decide:
+- Run **`lwiki raw sync`** to refresh `files.log` (no source re-ingest)
+- Run a targeted **INGEST** on the changed files
 
-**Contradictions**
-- Two pages making conflicting claims about the same thing
-- Include exact quotes from both pages
-- If the contradictions involve external claims, check whether the pages
-  cite them under a `## Citations` section; uncited external claims are
-  more likely to be stale than cited ones — flag both.
+### 4. Heuristic Issues
 
-**Stale claims**
-- Pages not updated within 90 days that contain temporal language: "current", "latest", "recent", "state-of-the-art", or year literals two or more years old
+These aren't caught by the conformance validator. Walk the bundle and look for:
 
-**Missing `description` on existing pages**
-- Pages created before the `description` field became required may lack one
-- Suggest a one-line summary based on the page body and offer to fill it in
+| Category | How to detect |
+|----------|---------------|
+| **Contradictions** | Two pages disagree on a fact; cross-link them in `## See Also` and add a conflict note |
+| **Stale claims (temporal)** | Pages older than 90 days with `generated.at` < cutoff, or pages using temporal keywords like "current", "latest", "recent", "state-of-the-art", or a year literal that no longer matches the present — propose an INGEST |
+| **Orphan pages** | A concept with no incoming links from any other concept → search the bundle for natural cross-references |
+| **Missing concept pages** | A slug referenced 3+ times across the bundle but with no dedicated page → propose a new concept or a redirect note |
+| **Coverage gaps from `overview.md`** | Each entry under `## Open Questions` is a candidate for a query → propose a QUERY |
+| **Missing cross-references** | A new concept that should link to existing ones but doesn't → backlink audit |
+| **Stale insights** | Insight pages older than 6 months with outdated "current understanding" → propose a re-run |
 
-**Orphan pages**
-- Pages with zero inbound `[[slug]]` links (excluding index.md and overview.md)
-- Suggest which pages should link to them
+Write the lint report to `insights/lint-<date>.md` so the user can scan it later. Use [templates/insight.md](../templates/insight.md) as the shape; tag it with `type: insight` and a topic tag of `lint`.
 
-**Missing concept pages**
-- Terms referenced 3+ times across the wiki but lacking a dedicated page
+### 5. Suggest Fixes
 
-**Missing cross-references**
-- Two pages that discuss the same entity/concept but don't link to each other
+Heuristic findings are **reports, not auto-fixes**. After writing the lint page, summarise each finding as a one-line actionable suggestion in your reply, and ask whether the user wants any of them applied via UPDATE.
 
-**Coverage gaps**
-- Open questions listed in overview.md that could be answered
-- Topics partially covered that need more sources
+### 6. Report to User
 
-**Stale insights**
-- Insight pages whose cited source pages (in frontmatter `sources`) have been substantially updated since the insight was created
-- Compare the insight's `updated` date against the `updated` dates of its cited pages
-- If any cited page was updated after the insight, flag it as potentially outdated
-
-### 4. Write Lint Report
-
-Always write `insights/lint-<today>.md` using [templates/insight.md](../templates/insight.md) as base, with:
-- `tags: [insight, lint, maintenance]`
-- Body structured as: Summary (counts) → Auto-Fixed (list) → Needs Attention (categorized findings)
-
-Add the lint report to index.md under Insights (table format per [templates/index.md](../templates/index.md)).
-
-### 5. Offer Fixes for Heuristic Issues
-
-For each actionable heuristic finding, offer a concrete fix:
-- Show exact diff before writing
-- Apply only after user confirmation
-
-### 6. Log
-
-Append to `wiki/log.md`:
-```
-## [YYYY-MM-DD] lint | <N> deterministic fixed, <N> heuristic reported
-Report: [[lint-<today>]]
-```
+- Conformance summary: errors / warnings / info counts (from `lwiki validate`)
+- Auto-fix summary: wikilinks rewritten, dead source refs dropped
+- Drift summary: new / modified / deleted file counts (from `lwiki raw status`)
+- Heuristic findings: list of contradictions, staleness, orphans, missing concepts, coverage gaps, missing cross-refs
+- Lint page path so the user can re-read it
+- Proposed next actions (none applied)

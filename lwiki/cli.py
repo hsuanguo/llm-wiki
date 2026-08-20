@@ -8,7 +8,6 @@ import typer
 
 from lwiki import __version__
 from lwiki.init_scaffold import DEFAULT_SOURCE_TYPES, init_wiki_tree
-from lwiki.okf_export import export_okf
 from lwiki.raw_tracker import run_raw_status, run_raw_sync
 from lwiki.structure import render_structure_text
 
@@ -89,6 +88,107 @@ def checkout_alias(
     raise typer.Exit(code)
 
 
+@app.command("wikilink-rewrite")
+def wikilink_rewrite_cmd(
+    bundle: Path = typer.Argument(
+        Path("."),
+        help="OKF bundle root",
+        exists=False,
+    ),
+    absolute: bool = typer.Option(
+        False,
+        "--absolute",
+        help="Emit bundle-root-absolute links (/concepts/foo.md) instead of file-relative",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Report what would change without writing any files",
+    ),
+) -> None:
+    """Rewrite leftover ``[[wikilinks]]`` to standard markdown links."""
+    from .wikilink_rewrite import iter_warnings, rewrite_bundle
+
+    result = rewrite_bundle(
+        bundle.resolve(),
+        absolute_links=absolute,
+        write=not dry_run,
+    )
+    typer.secho(
+        f"{'Would rewrite' if dry_run else 'Rewritten'}: "
+        f"{result.links_rewritten} link(s) in {result.files_rewritten} of "
+        f"{result.files_scanned} file(s) in {result.bundle_dir}",
+        fg=typer.colors.GREEN,
+    )
+    for w in iter_warnings(result):
+        typer.secho(w, fg=typer.colors.YELLOW)
+
+
+@app.command("migrate")
+def migrate_cmd(
+    old_wiki: Path = typer.Argument(
+        ...,
+        help="Legacy Obsidian-shaped wiki root (contains AGENTS.md + wiki/)",
+        exists=False,
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        "-o",
+        help="Output bundle directory (created if missing)",
+    ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        "-f",
+        help="Overwrite an existing non-empty output directory",
+    ),
+) -> None:
+    """Convert a legacy Obsidian-shaped wiki into an OKF 0.2 bundle.
+
+    The source wiki is read-only. ``out`` becomes the OKF bundle — concepts
+    lifted to the bundle root, frontmatter migrated to OKF 0.2, any
+    leftover ``[[wikilinks]]`` rewritten to standard markdown links.
+    """
+    from .migrate import convert
+
+    try:
+        result = convert(old_wiki.resolve(), out.resolve(), force=force)
+    except (FileNotFoundError, FileExistsError) as e:
+        typer.secho(str(e), err=True, fg=typer.colors.RED)
+        raise typer.Exit(2) from e
+
+    typer.secho(
+        f"Migrated {result.pages_migrated} page(s) from {result.old_wiki.name} "
+        f"to {result.new_bundle} "
+        f"({result.files_copied} files, {result.links_rewritten} link(s) rewritten).",
+        fg=typer.colors.GREEN,
+    )
+    for w in result.warnings:
+        typer.secho(f"  warning: {w}", fg=typer.colors.YELLOW)
+
+
+@app.command("validate")
+def validate_cmd(
+    bundle: Path = typer.Argument(
+        Path("."),
+        help="OKF bundle root (must contain index.md declaring okf_version)",
+        exists=False,
+    ),
+) -> None:
+    """Check OKF 0.2 conformance. Exit 0 if conformant, non-zero otherwise."""
+    from .conformance import is_conformant, validate_bundle
+
+    violations = validate_bundle(bundle.resolve())
+    for v in violations:
+        prefix = f"[{v.level.value.upper()}]"
+        where = f" {v.path}" if v.path else ""
+        typer.echo(f"{prefix} {v.code}{where} - {v.message}")
+    if not is_conformant(violations):
+        raise typer.Exit(1)
+    typer.echo(f"OK: {bundle} conforms to OKF 0.2.")
+
+
 @app.command("init")
 def init_cmd(
     path: Path = typer.Argument(
@@ -157,64 +257,29 @@ def run() -> None:
 
 @export_app.command("okf")
 def export_okf_cmd(
-    wiki: Path = typer.Argument(
+    bundle: Path = typer.Argument(
         Path("."),
-        help="Wiki root directory (must contain AGENTS.md or wiki/{index,log}.md)",
+        help="OKF bundle root (must contain index.md declaring okf_version)",
         exists=False,
     ),
-    out: Path = typer.Option(
-        ...,
-        "--out",
-        "-o",
-        help="Output bundle directory (created if missing; must be empty unless --force)",
-    ),
-    force: bool = typer.Option(
-        False,
-        "--force",
-        "-f",
-        help="Overwrite an existing non-empty output directory",
-    ),
-    relative_links: bool = typer.Option(
-        False,
-        "--relative-links",
-        help=(
-            "Emit file-relative markdown links (../entities/foo.md) instead of "
-            "bundle-root-absolute links (/entities/foo.md). Use this when "
-            "serving the bundle to a renderer that doesn't follow the "
-            "leading-slash form."
-        ),
-    ),
 ) -> None:
-    """Export the wiki as an OKF (Open Knowledge Format) bundle.
+    """Verify OKF 0.2 conformance of the bundle (no transformation).
 
-    OKF 0.2 spec: https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md
-
-    The wiki is read-only; the bundle is written to ``out``. Cross-links are
-    rewritten from Obsidian ``[[slug]]`` to either bundle-relative
-    ``/path/to/x.md`` (default) or file-relative ``../path/to/x.md``
-    (with ``--relative-links``). Each directory gets an OKF-style
-    ``index.md`` listing. Exits non-zero if the wiki is missing, the
-    output is non-empty without ``--force``, or any concept file has
-    unparseable frontmatter.
+    This command used to project an Obsidian-shaped wiki into an OKF bundle.
+    llm-wiki is now 100% OKF-native — the bundle IS the wiki — so the
+    command's new role is to **validate** conformance against the OKF 0.2
+    spec. Use ``lwiki migrate`` to convert a legacy Obsidian-shaped wiki.
     """
-    try:
-        result = export_okf(
-            wiki.resolve(), out.resolve(), force=force, relative_links=relative_links
-        )
-    except (FileNotFoundError, FileExistsError) as e:
-        typer.secho(str(e), err=True, fg=typer.colors.RED)
-        raise typer.Exit(2) from e
+    from .conformance import is_conformant, validate_bundle
 
-    typer.secho(
-        f"Exported {result.concept_count} concept(s) to {result.bundle_dir} "
-        f"({result.rewritten_links} link(s) rewritten, "
-        f"{'relative' if relative_links else 'absolute'} links).",
-        fg=typer.colors.GREEN,
-    )
-    for w in result.ambiguous_warnings:
-        typer.secho(f"  ambiguous: {w}", fg=typer.colors.YELLOW)
-    for w in result.unresolved_warnings:
-        typer.secho(f"  unresolved: {w}", fg=typer.colors.YELLOW)
+    violations = validate_bundle(bundle.resolve())
+    for v in violations:
+        prefix = f"[{v.level.value.upper()}]"
+        where = f" {v.path}" if v.path else ""
+        typer.echo(f"{prefix} {v.code}{where} - {v.message}")
+    if not is_conformant(violations):
+        raise typer.Exit(1)
+    typer.echo(f"OK: {bundle} conforms to OKF 0.2.")
 
 
 if __name__ == "__main__":

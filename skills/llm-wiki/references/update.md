@@ -1,87 +1,61 @@
-# UPDATE — Revise Existing Wiki Pages
+# UPDATE — Revise Bundle Pages
 
-## Two Modes
+## When to Run
 
-This operation runs in two modes with different confirmation levels:
-
-### User-triggered mode
-When the user explicitly asks to correct, revise, or update pages.
-- **Always show diffs before writing**
-- **Always cite the source of new information**
-- **Always check downstream effects**
-- **Per-page confirmation required — never batch-apply**
-
-### LLM-triggered mode (during INGEST cascade)
-When the LLM determines existing pages are affected by newly ingested content.
-- **Certain updates** (clear factual additions, new source references, non-controversial supplements) → apply directly, no confirmation needed
-- **Uncertain updates** (ambiguous claims, conflicting information, meaning-altering changes) → list them and ask the user
-- Always cite the source and log changes regardless of mode
-
-## Pre-condition
-
-Wiki must be initialized. Read wiki/index.md to understand current state.
+User asks for edits, corrections, or merges on existing pages; or the cascade step of INGEST surfaces updates that are certain enough to apply directly.
 
 ## Process
 
-### 1. Identify What to Update
+### 1. Identify the Target Pages
 
-The user may provide:
-- **Specific page names** → read those pages
-- **New information** → read index.md to find affected pages
-- **A lint report** → work through its recommendations
+- If the user names a path (`concepts/democracy.md`, `entities/athens.md`, …) — open it directly.
+- If the user names only a topic — locate the page via `index.md` and the See Also chain.
+- For multiple edits, group by whether they share a `## See Also` reach (so a single pass over each page covers them).
 
-### 2. Show Diff for Each Page
+### 2. Read Current State + History
 
-Read current content in full. Propose the change:
+- Read the current page in full, including frontmatter.
+- If a recent ingest or query logged a `verified: [...]` audit entry related to this page, note which actor / timestamp the change should be attributed to (`generated.by` for the new edit; new `verified` entry if the change is a verification pass).
 
-> **Current:** `<quote the existing text>`
-> **Proposed:** `<replacement text>`
-> **Reason:** `<why this change is warranted>`
-> **Source:** `<URL, file path, or description of where this information comes from>`
+### 3. Propose the Diff
 
-**Always include Source.** An edit without a source citation creates untraceability — future sessions won't know why the change was made.
+For each page, compose the proposed diff in plain text:
 
-### 2a. Update Citations when External Claims Change
+- **Frontmatter changes** explicitly called out (don't bury them)
+- **Body changes** shown as removed-then-added, or "no body change" if only frontmatter changed
+- **See Also** updates if you added or removed cross-references
+- **`generated.at`** refresh is automatic (every edit updates it); surface the new value
 
-If the update introduces or revises a claim backed by an external source, mirror that change in any `## Citations` section the page has:
+Show the diff to the user and **wait for confirmation** before writing.
 
-- For insight pages: update the numbered list at the bottom of the page so the inline claim stays anchored to its source.
-- For pages that don't already have a `## Citations` section but now contain an external claim, offer to add one.
-- Add or update the `resource:` frontmatter field with the canonical URI of the underlying asset when the page doesn't already have one.
+### 4. Write the Update
 
-### 3. Per-Page Confirmation
+On confirmation:
 
-Ask before writing each page. Do not batch-apply changes without per-page confirmation. The user may accept some changes and reject others.
+1. Update the page file with the new frontmatter + body. Use the same write semantics as INGEST (markdown links, OKF-shaped frontmatter).
+2. Refresh `generated.at`. Add a `verified: [{ by, at }]` entry if the change is a verification (correction of a factual error), not just a re-phrasing.
+3. If you added new concepts that other pages should link to, run the **backlink audit** across the bundle.
+4. Append to `log.md`:
+   ```
+   ## [YYYY-MM-DD] update | <topic>
+   Pages updated: <list>
+   ```
 
-### 4. Check Downstream Effects
+### 5. Cascade
 
-After identifying primary pages to update, scan all wiki pages for `[[slug]]` references to updated pages. For each linking page:
-- Does the update change what that page asserts?
-- If yes → flag it: "[[other-page]] may also need updating based on this change"
-- Offer to update with the same confirm-before-write flow
+If the change is likely to affect other pages (e.g. a corrected date, a new tag, a renamed entity):
 
-### 5. Contradiction Sweep
+1. Re-read the related pages
+2. Apply the same diff pattern; show each to the user
+3. Wait for confirmation before writing each
 
-If the new information contradicts existing claims: search ALL pages for the contradicted claim. It may appear in more than one place. Update all occurrences, not just the most obvious one.
+If the cascade is large (>5 pages), propose the changeset as a single batch and ask for one confirmation covering all of them.
 
-### 6. Update Index and Overview
+### 6. Status Updates
 
-- Update one-line summaries in index.md if they changed
-- Update the page's frontmatter `updated` date
-- Propose overview.md edits if the updates shift the overall synthesis (same confirm-before-write flow)
+If the change is more than a typo fix:
 
-### 7. Log
+- `status: draft` → `status: stable` once a second source agrees or the user signs off
+- `status: stable` → `status: deprecated` if the page is superseded by a newer one; add a `## Superseded by: [new-page](path.md)` note at the top of the body
 
-Always append to `wiki/log.md`:
-```
-## [YYYY-MM-DD] update | <list of updated page slugs>
-Reason: <brief description of what changed and why>
-Source: <URL or description>
-```
-
-## Common Mistakes
-
-- **Updating without citing the source** — always include where the new information came from
-- **Skipping the downstream check** — silent inconsistency is worse than a visible contradiction
-- **Batch-writing without confirmation** — show each diff individually
-- **Skipping the log** — every change must be logged
+Never silently flip status; always call it out in the diff and ask.
