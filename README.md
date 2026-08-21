@@ -69,6 +69,126 @@ Only `|type` is strictly required. The rest is recommended.
 
 OKF provenance replaces the legacy wiki-internal `updated:`, `sources: [paths]`, and `cited:` fields.
 
+## Usage
+
+Day to day you talk to an AI agent, not to the CLI. Copy the skill into your agent's skill directory once:
+
+```bash
+cp -r skills/llm-wiki /path/to/project/.claude/skills/
+```
+
+`.claude/skills/` is supported by most AI agents (Claude Code, OpenCode, Cursor, etc.). If your agent expects another location, move it there.
+
+<p align="center">
+  <img src="assets/flow.svg" alt="wiki-flow" width="600" /><br />
+</p>
+
+### 1. Create a New Wiki (INIT)
+
+Tell the agent:
+
+```
+Init a wiki at ~/wikis/greek-history for Greek history
+```
+
+The agent will:
+- Run `lwiki init` to scaffold the OKF bundle (see [The Bundle Layout](#the-bundle-layout))
+- Generate `AGENTS.md` (your domain schema), `CLAUDE.md`, `README.md`, and the starter `index.md` / `log.md` / `overview.md`
+- Create the empty `raw/`, `summaries/`, `concepts/`, `entities/`, and `insights/` directories, and an initial `raw/files.log`
+
+### 2. Add Sources (INGEST)
+
+#### Option A: Files
+
+Move source files (PDF, Markdown, etc.) into `~/wikis/greek-history/raw/`, then tell the agent:
+
+```
+Ingest all new sources in raw/
+```
+
+#### Option B: Paste content directly
+
+```
+Add this to the wiki:
+<paste article text or URL>
+```
+
+#### What happens during ingest
+
+The agent will:
+1. Read each source in full
+2. Create or update pages in `summaries/`, `concepts/`, `entities/`
+3. Run a backlink audit — add markdown links across existing pages
+4. Scan the whole bundle for pages affected by the new information (cascade update)
+5. Update `index.md`, `overview.md`, and `log.md`
+6. Sync `raw/files.log` via `lwiki raw sync`
+
+**Note:** the agent proceeds autonomously. It only asks you when something is genuinely unclear (ambiguous facts, conflicting sources it can't resolve).
+
+### 3. Ask Questions (QUERY)
+
+```
+What do we know about the Peloponnesian War?
+```
+
+```
+Compare Athenian and Spartan military strategies across all sources
+```
+
+```
+What are the unresolved questions about the fall of Mycenaean civilization?
+```
+
+The agent answers strictly from bundle content, citing pages with markdown links. After answering, it may:
+- **Offer to save** the analysis as an insight page (if the answer has standalone value)
+- **Report issues** found in existing pages (outdated info, contradictions) and ask if you want to fix them
+
+### 4. Update Pages (UPDATE)
+
+#### User-triggered (you ask for changes)
+
+```
+Update concepts/democracy.md — the latest source says X
+```
+
+```
+Fix the contradiction between concepts/oligarchy.md and concepts/democracy.md
+```
+
+The agent shows a diff for each page and waits for your confirmation before writing.
+
+#### Agent-triggered (during ingest)
+
+When new sources affect existing pages, the agent updates them automatically if the change is straightforward. It asks you only for uncertain or meaning-altering changes.
+
+### 5. Health Check (LINT)
+
+```
+Lint the wiki
+```
+
+The agent runs `lwiki validate` for OKF 0.2 conformance and then checks:
+
+| Category | Auto-fixed? | Examples |
+|----------|-------------|---------|
+| **Deterministic** | Yes | Conformance errors, leftover `[[wikilinks]]`, dead `sources:` paths, index inconsistencies |
+| **Heuristic** | No — reports only | Contradictions, stale claims, orphan pages, missing cross-references, stale insights |
+
+It writes a lint report to `insights/lint-<date>.md` and offers fixes for the heuristic issues.
+
+### 6. Check for New Sources (Drift Detection)
+
+```
+Any new files in raw/?
+```
+
+Or run directly:
+
+```bash
+lwiki raw status    # report only
+lwiki raw sync      # update files.log
+```
+
 ## The Daily Workflow
 
 | You do | AI does |
