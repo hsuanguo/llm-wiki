@@ -6,7 +6,7 @@ const state = {
   currentWiki: null,
   currentPage: null,
   graph: null,
-  sections: ["concepts", "summaries", "entities", "insights"],
+  sections: ["summaries", "concepts", "entities", "insights"],
 };
 
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -177,6 +177,20 @@ async function renderWikiSidebar(route) {
   const wiki = await api.get(`/api/wikis/${encodeURIComponent(route.wiki)}`);
   const sections = $("#section-list");
   sections.innerHTML = "";
+  if (wiki.counts.overview) {
+    const li = document.createElement("li");
+    if (route.view === "page" && route.rel === "overview.md") {
+      li.className = "active";
+    }
+    const a = document.createElement("a");
+    a.href = pageHash(route.wiki, "overview.md");
+    a.textContent = "overview";
+    const pill = document.createElement("span");
+    pill.className = "pill";
+    pill.textContent = "1";
+    li.append(a, pill);
+    sections.appendChild(li);
+  }
   for (const sec of state.sections) {
     const n = wiki.counts[sec] || 0;
     if (n === 0) continue;
@@ -190,20 +204,6 @@ async function renderWikiSidebar(route) {
     const pill = document.createElement("span");
     pill.className = "pill";
     pill.textContent = n;
-    li.append(a, pill);
-    sections.appendChild(li);
-  }
-  if (wiki.counts.overview) {
-    const li = document.createElement("li");
-    if (route.view === "page" && route.rel === "overview.md") {
-      li.className = "active";
-    }
-    const a = document.createElement("a");
-    a.href = pageHash(route.wiki, "overview.md");
-    a.textContent = "overview";
-    const pill = document.createElement("span");
-    pill.className = "pill";
-    pill.textContent = "1";
     li.append(a, pill);
     sections.appendChild(li);
   }
@@ -254,18 +254,18 @@ async function renderWikiIndex(c, wiki) {
 
     <div class="stats">
       ${statBlock("Total", data.counts.total, "concept pages", data.counts.total > 0 ? "accent" : "")}
+      ${statBlock("Overview", data.counts.overview, "evolving synthesis", data.counts.overview ? "accent" : "")}
+      ${statBlock("Summaries", c1, "raw-source distillations", "")}
       ${statBlock("Concepts", c0, "compound ideas", "")}
       ${statBlock("Entities", c2, "people, tools, products", "")}
-      ${statBlock("Summaries", c1, "raw-source distillations", "")}
       ${statBlock("Insights", c3, "syntheses", c3 > 0 ? "warm" : "")}
-      ${statBlock("Overview", data.counts.overview, "evolving synthesis", data.counts.overview ? "accent" : "")}
     </div>
 
+    ${pages.some((p) => p.category === "overview") ? renderSection("overview", pages.filter((p) => p.category === "overview")) : ""}
     ${state.sections
       .filter((s) => pages.some((p) => p.category === s))
       .map((s) => renderSection(s, pages.filter((p) => p.category === s)))
       .join("")}
-    ${pages.some((p) => p.category === "overview") ? renderSection("overview", pages.filter((p) => p.category === "overview")) : ""}
   `;
 }
 
@@ -859,25 +859,6 @@ $("#btn-new-wiki").addEventListener("click", async (ev) => {
 $("#btn-new-page").addEventListener("click", (ev) => {
   ev.preventDefault();
   openNewPageModal("concepts");
-});
-
-$('[data-action="export"]')?.addEventListener("click", async (ev) => {
-  ev.preventDefault();
-  if (!state.currentWiki) {
-    alert("Please select a wiki first.");
-    return;
-  }
-  try {
-    const res = await api.get(`/api/wikis/${encodeURIComponent(state.currentWiki)}/validate`);
-    if (res.conformant) {
-      alert(`OKF 0.2 Conformance: OK!\nWiki '${state.currentWiki}' conforms to OKF 0.2.`);
-    } else {
-      const msgs = res.violations.map((v) => `[${v.level.toUpperCase()}] ${v.code}: ${v.message}`).join("\n");
-      alert(`OKF Conformance Violations for '${state.currentWiki}':\n${msgs}`);
-    }
-  } catch (e) {
-    alert(e.message);
-  }
 });
 
 $("#back-to-wikis").addEventListener("click", (ev) => {
