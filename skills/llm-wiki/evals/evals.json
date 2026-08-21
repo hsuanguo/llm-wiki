@@ -1,0 +1,87 @@
+{
+  "skill_name": "llm-wiki",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I want to start a personal knowledge base for tracking what I'm learning about Greek philosophy (the pre-Socratics through Aristotle). Set it up at ./wiki/greek-philosophy under my home directory. I mostly read books and PDFs.",
+      "expected_output": "An OKF 0.2 bundle is bootstrapped at ./wiki/greek-philosophy by running `lwiki init ./wiki/greek-philosophy --domain \"<one-sentence purpose>\" --sources \"books, pdfs\"` from the parent directory. The bundle contains index.md declaring okf_version: \"0.2\", log.md with the first init entry, overview.md, AGENTS.md, CLAUDE.md, README.md, the concept subdirs (summaries/, concepts/, entities/, insights/), and an initial raw/files.log produced by `lwiki raw sync`. The skill must NOT hand-create files or invent a different directory tree — it must defer to `lwiki structure` as the single source of truth.",
+      "files": [],
+      "expectations": [
+        "The skill runs `lwiki init <path> --domain \"...\"` rather than hand-creating files and directories",
+        "The skill passes `--sources \"books, pdfs\"` to `lwiki init` because the user named specific source types",
+        "After `lwiki init`, the bundle root contains `index.md` whose frontmatter declares `okf_version: \"0.2\"`",
+        "The bundle contains `log.md` with a `## [<date>] init | <domain>` entry as its first section",
+        "The bundle contains `overview.md`, `AGENTS.md`, `CLAUDE.md`, `README.md` populated by the CLI",
+        "The concept subdirs `summaries/`, `concepts/`, `entities/`, `insights/` exist at the bundle root",
+        "`raw/files.log` exists after `lwiki raw sync` is run",
+        "The skill reads `references/init.md` before executing INIT steps"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I just dropped two PDFs into raw/ — one is the original \"Attention Is All You Need\" paper (saved as attention-is-all-you-need.md, already there) and a blog post summary I pasted in at raw/transformer-blog-post.md. Please add them to the wiki at ./wiki/ml-architecture.",
+      "expected_output": "The skill follows INGEST: reads each source in full, decides where each piece of knowledge belongs (same-topic merge vs. new concept/entity), writes new pages with the appropriate template (summary/concept/entity), adds cross-reference markdown links in the See Also section, runs a backlink audit across the bundle, performs cascade updates on pages affected by the new sources, refreshes `raw/files.log` via `lwiki raw sync`, and appends a `## [<date>] ingest | <source title>` entry to `log.md` with the pages created/updated and cascade-updated pages listed. raw/ files are NEVER modified.",
+      "files": [],
+      "expectations": [
+        "The skill reads `references/ingest.md` before ingesting",
+        "Each raw source is read in full before any page is written",
+        "New pages use the appropriate template from `templates/` (summary.md, concept.md, or entity.md) with required OKF frontmatter (`type:` at minimum)",
+        "Every new or updated page ends with a `## See Also` section containing standard markdown links",
+        "A backlink audit is performed across the bundle after writes — missing links to new content are added",
+        "`raw/files.log` is refreshed via `lwiki raw sync` (not hand-edited)",
+        "`log.md` receives a new `## [<date>] ingest | ...` entry listing pages created and updated",
+        "No file under `raw/` is modified during the ingest",
+        "Contradictions with existing pages are annotated with source attribution rather than silently overwritten"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "What do we know about the transformer architecture from ./wiki/ml-architecture? Compare self-attention vs. cross-attention and flag any contradictions or gaps in the bundle.",
+      "expected_output": "The skill follows QUERY: scopes the entities/concepts (transformer, self-attention, cross-attention), reads candidate pages from `index.md` and follows the See Also chain, synthesises a comparison answer with citations as standard markdown links to bundle pages (e.g. `[self-attention](../concepts/self-attention.md)` or `/concepts/self-attention.md`), flags gaps/contradictions, and notes uncertainty for any claim sourced from a single page. No new files are written for a read-only query unless the user opts in to save it as an insight. No raw/ or existing pages are modified.",
+      "files": [],
+      "expectations": [
+        "The skill reads `references/query.md` before answering",
+        "The answer cites every claim with a markdown link to a bundle page (relative or bundle-root absolute)",
+        "Comparison questions are answered side-by-side (table or explicit A-vs-B sentences), not collapsed into a single narrative",
+        "Gaps and contradictions are surfaced explicitly rather than hidden",
+        "Uncertainty is called out when a claim comes from only one page",
+        "No page is written or modified unless the user explicitly confirms saving the answer as an insight",
+        "`raw/` is never read for source truth in a QUERY — only existing bundle pages are consulted",
+        "Forward markdown links to related pages are followed (See Also chain) before the answer is finalised"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I just read that the transformer paper uses sinusoidal positional encodings, but our concepts/self-attention.md currently says it uses learned positional embeddings. Please fix concepts/self-attention.md and update any other pages affected in ./wiki/ml-architecture.",
+      "expected_output": "The skill follows UPDATE: identifies the target page, reads it in full, proposes a diff to the user showing the frontmatter change (e.g. updating `sources:` and `description:` if needed) and the body change explicitly, refreshes `generated.at`, adds a `verified: [{ by, at }]` entry for the factual correction, performs cascade updates on related pages (showing each diff and waiting for confirmation), runs a backlink audit, and appends a `## [<date>] update | <topic>` entry to `log.md`. No raw/ files are modified.",
+      "files": [],
+      "expectations": [
+        "The skill reads `references/update.md` before editing",
+        "The skill proposes the diff and waits for user confirmation BEFORE writing — no silent edits",
+        "Frontmatter changes (e.g. `sources:`, `description:`, `generated.at`) are called out separately from body changes",
+        "`generated.at` is refreshed on the updated page",
+        "A `verified: [{ by, at }]` entry is added because this is a factual correction, not a re-phrase",
+        "Cascade updates to related pages are identified and shown as separate diffs (each confirmed)",
+        "If >5 pages need cascade updates, the skill proposes them as one batch with one confirmation",
+        "A `## [<date>] update | <topic>` entry is appended to `log.md` listing pages updated",
+        "`raw/` is never modified during an UPDATE"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Lint ./wiki/ml-architecture please — check OKF conformance, find any gaps, stale pages, or broken links, and tell me what's wrong.",
+      "expected_output": "The skill follows LINT: runs `lwiki validate` from the bundle root (errors must be fixed before proceeding), auto-fixes recoverable issues (broken `[[wikilinks]]` via `lwiki wikilink-rewrite`, dead `sources: [raw/...]` paths), optionally runs `lwiki raw status` for drift, walks the bundle for heuristic issues (contradictions, stale temporal claims, orphan pages, missing concept pages, coverage gaps from overview.md Open Questions, missing cross-references, stale insights), writes a report to `insights/lint-<date>.md` using `templates/insight.md` (type: insight, topic tag: lint), and summarises each heuristic finding as a one-line actionable suggestion in the reply — WITHOUT auto-applying fixes.",
+      "files": [],
+      "expectations": [
+        "The skill reads `references/lint.md` before linting",
+        "`lwiki validate` is run from the bundle root and any conformance errors are flagged",
+        "Broken `[[wikilinks]]` are auto-fixed via `lwiki wikilink-rewrite` and re-validated",
+        "Dead `sources: [raw/...]` paths are auto-removed or corrected",
+        "`lwiki raw status` is run to surface raw drift (without writing)",
+        "The lint report is written to `insights/lint-<date>.md` using `templates/insight.md` with `type: insight` and a topic tag of `lint`",
+        "Heuristic findings (contradictions, stale temporal claims, orphans, missing concepts, coverage gaps, missing cross-refs, stale insights) are each summarised in the reply",
+        "Heuristic findings are reported but NOT auto-applied — the user is asked before any UPDATE-style fix"
+      ]
+    }
+  ]
+}
