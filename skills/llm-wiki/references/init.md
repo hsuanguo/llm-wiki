@@ -28,7 +28,7 @@ That command creates the directories, **`index.md`** (declares `okf_version: "0.
 
 ### 3. Starter Files (AGENTS.md, CLAUDE.md, README, index, log, overview)
 
-**Implemented by `lwiki init`** — same content shapes as this skill and [templates/index.md](../templates/index.md):
+**Implemented by `lwiki init`** — same content shapes as this skill and [templates/root-index.md](../templates/root-index.md):
 
 - **`AGENTS.md`** — `# <Domain> Wiki Schema` with **Domain**,** **Source Types** (from `--sources` or default), and **Conventions** (frontmatter contract — required/recommended/optional tiers, OKF 0.2 fields, no `[[wikilinks]]`, immutable `raw/`, append-only `log.md`, forward-reference tolerance, co-evolving schema). This is the file to edit for schema changes (also consumed by other agents).
 - **`CLAUDE.md`** — Fixed stub: `@AGENTS.md` plus a short note so Claude Code loads the same OKF-native conventions.

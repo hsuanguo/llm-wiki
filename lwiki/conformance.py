@@ -171,9 +171,23 @@ def _check_concept_files(bundle_dir: Path) -> list[Violation]:
 def _check_one_file(path: Path, rel: str) -> list[Violation]:
     out: list[Violation] = []
 
-    # Reserved filenames are allowed only at the bundle root.
     name = path.name
-    if name in RESERVED and rel not in ("index.md", "log.md"):
+    top = rel.split("/", 1)[0]
+    in_subdir = top in WIKI_SUBDIRS
+
+    # Per-directory index files (`<subdir>/index.md`) are OKF's
+    # directory-listing convention. They are exempt from the reserved
+    # filename rule and from concept frontmatter checks — they are
+    # bullet-list directory indexes, not concepts. Frontmatter is still
+    # reserved for the bundle root only per OKF spec, so a per-subdir
+    # index.md that carries concept frontmatter is not flagged here, but
+    # authors should keep these files frontmatter-free.
+    is_directory_index = name == "index.md" and in_subdir
+
+    # Reserved filenames are not allowed as concept files in subdirs.
+    # `index.md` in a concept subdir is a directory index (handled above);
+    # `log.md` in a subdir is always an error.
+    if name in RESERVED and not is_directory_index and rel not in ("index.md", "log.md"):
         out.append(
             Violation(
                 Level.ERROR,
@@ -183,16 +197,10 @@ def _check_one_file(path: Path, rel: str) -> list[Violation]:
             )
         )
 
-    # log.md and the root index.md are special — skip frontmatter shape
-    # checks for them.
-    if rel in ("index.md", "log.md"):
+    # log.md, the root index.md, and per-directory indexes are special —
+    # skip concept frontmatter shape checks for them.
+    if rel in ("index.md", "log.md") or is_directory_index:
         return out
-
-    # Files outside concept subdirs that aren't top-level reserved files
-    # are OKF-bundle concept files; they MUST have parseable frontmatter
-    # with a non-empty ``type``.
-    top = rel.split("/", 1)[0]
-    in_subdir = top in WIKI_SUBDIRS
 
     text = path.read_text(encoding="utf-8")
     try:

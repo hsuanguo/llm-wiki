@@ -309,6 +309,12 @@ def test_export_subdirectory_index_lists_concepts(tmp_path: Path) -> None:
     concepts_idx = (bundle / "concepts" / "index.md").read_text(encoding="utf-8")
     assert "* [rag](/concepts/rag.md)" in concepts_idx
     assert "Retrieval-Augmented Generation" in concepts_idx
+    # The exported bundle (including per-directory index.md files) must
+    # pass the OKF conformance validator — otherwise the very first step
+    # of LINT would block the user on something the exporter produced.
+    from lwiki.conformance import is_conformant, validate_bundle
+
+    assert is_conformant(validate_bundle(bundle))
 
 
 def test_export_root_index_lists_subdirs(tmp_path: Path) -> None:
