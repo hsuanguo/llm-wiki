@@ -49,6 +49,7 @@ Wait for user confirmation before writing the insight. If confirmed:
 - Set `type: insight` and `status: draft` initially
 - Add `verified: [{ by: <your actor>, at: <today> }]` once the user signs off
 - Append a `## [YYYY-MM-DD] query | <topic>` entry to `log.md`
+- **After saving the insight, run UPDATE** to add a reverse `[insight-slug](../insights/<slug>.md)` entry under `## See Also` on every cited concept/entity page, and to refresh `overview.md` if the synthesis moves the high-level picture. The insight itself is a snapshot and won't be cascade-updated, but its neighbours need to know about it.
 
 ### 5. Optional: Report Issues
 
