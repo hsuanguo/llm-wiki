@@ -212,6 +212,33 @@ def test_concept_with_all_known_types_is_clean(tmp_path: Path) -> None:
 
 
 def test_reserved_filename_in_subdir_errors(tmp_path: Path) -> None:
+    """Reserved filenames are not allowed as concept files in subdirs.
+
+    `index.md` in a concept subdir is treated as a per-directory index and
+    is allowed (see ``test_directory_index_in_subdir_passes`` below); only
+    `log.md` outside the bundle root still triggers the rule.
+    """
+    bundle = tmp_path / "b"
+    bundle.mkdir()
+    (bundle / "index.md").write_text(
+        "---\nokf_version: '0.2'\n---\n",
+        encoding="utf-8",
+    )
+    (bundle / "concepts").mkdir()
+    (bundle / "concepts" / "log.md").write_text(
+        "---\ntype: concept\n---\n",
+        encoding="utf-8",
+    )
+    violations = validate_bundle(bundle)
+    assert "concept.reserved_filename" in _codes(violations)
+
+
+def test_directory_index_in_subdir_passes(tmp_path: Path) -> None:
+    """`<subdir>/index.md` is OKF's per-directory listing convention.
+
+    A bullet-list directory index without frontmatter is allowed and is
+    exempt from concept frontmatter checks.
+    """
     bundle = tmp_path / "b"
     bundle.mkdir()
     (bundle / "index.md").write_text(
@@ -220,11 +247,12 @@ def test_reserved_filename_in_subdir_errors(tmp_path: Path) -> None:
     )
     (bundle / "concepts").mkdir()
     (bundle / "concepts" / "index.md").write_text(
-        "---\ntype: concept\n---\n",
+        "# Concepts\n\n* [rag](rag.md) - retrieval-augmented generation\n",
         encoding="utf-8",
     )
     violations = validate_bundle(bundle)
-    assert "concept.reserved_filename" in _codes(violations)
+    assert "concept.reserved_filename" not in _codes(violations)
+    assert _errors(violations) == []
 
 
 # --- generated / sources / verified / status ---

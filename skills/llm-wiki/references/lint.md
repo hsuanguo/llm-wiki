@@ -47,7 +47,7 @@ These aren't caught by the conformance validator. Walk the bundle and look for:
 | **Missing concept pages** | A slug referenced 3+ times across the bundle but with no dedicated page → propose a new concept or a redirect note |
 | **Coverage gaps from `overview.md`** | Each entry under `## Open Questions` is a candidate for a query → propose a QUERY |
 | **Missing cross-references** | A new concept that should link to existing ones but doesn't → backlink audit |
-| **Stale insights** | Insight pages older than 6 months with outdated "current understanding" → propose a re-run |
+| **Stale insights** | An insight whose latest `verified[*].at` is older than the `generated.at` of any bundle-internal page it cites (i.e. the cited page was re-ingested after the insight was last verified) — OR an insight whose `verified[*].at` is older than the `last_modified` of any entry in its frontmatter `sources:` list — OR an insight older than 6 months that still uses "current understanding" / "current state" framing. Each match proposes a re-run of the underlying query. |
 
 Write the lint report to `insights/lint-<date>.md` so the user can scan it later. Use [templates/insight.md](../templates/insight.md) as the shape; tag it with `type: insight` and a topic tag of `lint`.
 
