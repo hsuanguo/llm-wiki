@@ -219,6 +219,10 @@ async function renderWikiSidebar(route) {
 
 async function renderContent(route) {
   const c = $("#content");
+  if (route.view !== "graph" && graphSim) {
+    graphSim.destroy();
+    graphSim = null;
+  }
   if (route.view === "wiki") {
     renderWikiIndex(c, route.wiki);
   } else if (route.view === "section") {
@@ -673,85 +677,542 @@ async function deletePage(wiki, rel) {
 
 // --- graph ---
 
+let graphSim = null;
+
 async function renderGraph(c, wiki) {
+  if (graphSim) {
+    graphSim.destroy();
+    graphSim = null;
+  }
+
   c.innerHTML = `
     <div class="page-eyebrow">${escapeHtml(wiki)} · graph</div>
     <h1 class="page-title">${escapeHtml(wiki)} — knowledge graph</h1>
-    <div class="page-meta"><span>nodes: <em id="node-count">—</em></span><span>edges: <em id="edge-count">—</em></span></div>
-    <div class="graph-wrap"><svg id="graph-svg" xmlns="http://www.w3.org/2000/svg"></svg></div>
-    <div class="graph-legend">
-      <span><span class="swatch" style="background:#143b2c"></span>concept</span>
-      <span><span class="swatch" style="background:#b8421a"></span>entity</span>
-      <span><span class="swatch" style="background:#1c1b18"></span>summary</span>
-      <span><span class="swatch" style="background:#8a8479"></span>insight</span>
-      <span><span class="swatch" style="background:#cfc7b8;border:1px solid #1c1b18"></span>overview</span>
+    <div class="page-meta">
+      <span>nodes: <em id="node-count">—</em></span>
+      <span>edges: <em id="edge-count">—</em></span>
+      <span>drag nodes to explore · scroll to zoom · hover for connections</span>
+    </div>
+    <div class="graph-wrap" id="graph-wrap">
+      <div class="graph-controls">
+        <button class="graph-btn" id="graph-zoom-in" title="Zoom In">+</button>
+        <button class="graph-btn" id="graph-zoom-out" title="Zoom Out">−</button>
+        <button class="graph-btn graph-btn--active" id="graph-labels-toggle" title="Toggle all labels vs hubs only">Aa</button>
+        <button class="graph-btn" id="graph-reset" title="Reset View">⟲</button>
+        <button class="graph-btn" id="graph-reheat" title="Reheat Physics">⚡</button>
+      </div>
+      <div class="graph-tooltip" id="graph-tooltip" style="display:none"></div>
+      <svg id="graph-svg" xmlns="http://www.w3.org/2000/svg">
+        <g id="graph-container" class="graph-container show-all-labels">
+          <g id="graph-links"></g>
+          <g id="graph-nodes"></g>
+        </g>
+      </svg>
+    </div>
+    <div class="graph-legend" id="graph-legend">
+      <span class="graph-legend__item" data-type="overview"><span class="swatch" style="background:#ffffff;border:1.5px solid #1c1b18"></span>overview</span>
+      <span class="graph-legend__item" data-type="summary"><span class="swatch" style="background:#2b2823"></span>summary</span>
+      <span class="graph-legend__item" data-type="concept"><span class="swatch" style="background:#1e4a38"></span>concept</span>
+      <span class="graph-legend__item" data-type="entity"><span class="swatch" style="background:#c24e23"></span>entity</span>
+      <span class="graph-legend__item" data-type="insight"><span class="swatch" style="background:#7d7568"></span>insight</span>
     </div>
   `;
+
   const data = await api.get(`/api/wikis/${encodeURIComponent(wiki)}/graph`);
   state.graph = data;
   $("#node-count").textContent = data.nodes.length;
   $("#edge-count").textContent = data.edges.length;
-  drawGraph(data);
+
+  if (data.nodes.length === 0) {
+    $("#graph-wrap").innerHTML = `<div class="empty" style="padding:40px;text-align:center">No concept pages found in this wiki yet.</div>`;
+    return;
+  }
+
+  graphSim = initForceGraph(data, wiki);
 }
 
-function drawGraph(data) {
+function initForceGraph(data, wiki) {
+  const wrap = $("#graph-wrap");
   const svg = $("#graph-svg");
-  const W = svg.clientWidth || 800;
-  const H = svg.clientHeight || 520;
-  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  const container = $("#graph-container");
+  const linksGroup = $("#graph-links");
+  const nodesGroup = $("#graph-nodes");
+  const tooltip = $("#graph-tooltip");
 
-  const nodes = data.nodes.map((n, i) => ({
-    ...n,
-    x: 60 + ((i * 73) % (W - 120)),
-    y: 40 + ((i * 131) % (H - 80)),
-    r: 5 + Math.min(8, Math.log2(1 + (n.title || "").length)),
-  }));
-  const byId = Object.fromEntries(nodes.map((n) => [n.id, n]));
+  const W = wrap.clientWidth || 800;
+  const H = wrap.clientHeight || 560;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
 
   const colorFor = (type) => {
     switch (type) {
-      case "concept": return "#143b2c";
-      case "entity": return "#b8421a";
-      case "summary": return "#1c1b18";
-      case "insight": return "#8a8479";
-      case "overview": return "#f6f1e7";
-      default: return "#1c1b18";
+      case "concept": return "#1e4a38";
+      case "entity": return "#c24e23";
+      case "summary": return "#2b2823";
+      case "insight": return "#7d7568";
+      case "overview": return "#ffffff";
+      default: return "#2b2823";
     }
   };
 
-  const ns = "http://www.w3.org/2000/svg";
-  for (const e of data.edges) {
-    const s = byId[e.source];
-    const t = byId[e.target];
-    if (!s || !t) continue;
-    const line = document.createElementNS(ns, "line");
-    line.setAttribute("x1", s.x);
-    line.setAttribute("y1", s.y);
-    line.setAttribute("x2", t.x);
-    line.setAttribute("y2", t.y);
-    line.setAttribute("class", "graph-link");
-    line.setAttribute("stroke-width", "1");
-    svg.appendChild(line);
+  const nodeMap = new Map();
+  data.nodes.forEach((n) => {
+    nodeMap.set(n.id, {
+      ...n,
+      degree: 0,
+      neighbors: new Set(),
+      x: 0,
+      y: 0,
+      vx: 0,
+      vy: 0,
+      fx: null,
+      fy: null,
+      r: 4,
+      el: null,
+    });
+  });
+
+  const edges = [];
+  data.edges.forEach((e) => {
+    const s = nodeMap.get(e.source);
+    const t = nodeMap.get(e.target);
+    if (s && t) {
+      s.degree++;
+      t.degree++;
+      s.neighbors.add(t.id);
+      t.neighbors.add(s.id);
+      edges.push({ source: s, target: t, el: null });
+    }
+  });
+
+  const nodes = Array.from(nodeMap.values());
+
+  const centerX = W / 2;
+  const centerY = H / 2;
+
+  // Determine top hubs to display smart labels cleanly by default
+  const sortedByDegree = [...nodes].sort((a, b) => b.degree - a.degree);
+  const hubThreshold = sortedByDegree.length > 5 ? (sortedByDegree[3]?.degree || 6) : 0;
+
+  nodes.forEach((n, i) => {
+    const angle = i * 2.39996;
+    const dist = 50 + Math.sqrt(i + 1) * 55;
+    n.x = centerX + dist * Math.cos(angle);
+    n.y = centerY + dist * Math.sin(angle);
+    n.r = 3.8 + Math.min(4.5, Math.sqrt(n.degree) * 1.25);
+  });
+
+  // --- Physics constants ---
+  const targetLinkDist = 145;
+  const kRepulse = 5200;
+  const kSpring = 0.035;
+  const kCenter = 0.005;
+  const friction = 0.82;
+  const maxSpeed = 7;
+
+  function runSimulationStep(simAlpha) {
+    // 1. Repulsion
+    for (let i = 0; i < nodes.length; i++) {
+      const n1 = nodes[i];
+      for (let j = i + 1; j < nodes.length; j++) {
+        const n2 = nodes[j];
+        let dx = n2.x - n1.x;
+        let dy = n2.y - n1.y;
+        let distSq = dx * dx + dy * dy;
+        if (distSq === 0) {
+          dx = (Math.random() - 0.5) * 2;
+          dy = (Math.random() - 0.5) * 2;
+          distSq = dx * dx + dy * dy;
+        }
+        const clampedDistSq = Math.max(400, distSq);
+        const dist = Math.sqrt(distSq);
+        const minDist = n1.r + n2.r + 28;
+
+        if (dist < minDist) {
+          const push = (minDist - dist) * 0.12 * simAlpha;
+          const nx = (dx / dist) * push;
+          const ny = (dy / dist) * push;
+          n1.vx -= nx;
+          n1.vy -= ny;
+          n2.vx += nx;
+          n2.vy += ny;
+        }
+
+        const force = (kRepulse / clampedDistSq) * simAlpha;
+        const fx = (dx / dist) * force;
+        const fy = (dy / dist) * force;
+
+        n1.vx -= fx;
+        n1.vy -= fy;
+        n2.vx += fx;
+        n2.vy += fy;
+      }
+    }
+
+    // 2. Spring link attraction
+    for (let i = 0; i < edges.length; i++) {
+      const e = edges[i];
+      const s = e.source;
+      const t = e.target;
+      const dx = t.x - s.x;
+      const dy = t.y - s.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      const displacement = dist - targetLinkDist;
+      const force = displacement * kSpring * simAlpha;
+      const fx = (dx / dist) * force;
+      const fy = (dy / dist) * force;
+
+      s.vx += fx;
+      s.vy += fy;
+      t.vx -= fx;
+      t.vy -= fy;
+    }
+
+    // 3. Center gravity & velocity integration
+    for (let i = 0; i < nodes.length; i++) {
+      const n = nodes[i];
+      n.vx += (centerX - n.x) * kCenter * simAlpha;
+      n.vy += (centerY - n.y) * kCenter * simAlpha;
+
+      n.vx *= friction;
+      n.vy *= friction;
+
+      const spd = Math.hypot(n.vx, n.vy);
+      if (spd > maxSpeed) {
+        n.vx = (n.vx / spd) * maxSpeed;
+        n.vy = (n.vy / spd) * maxSpeed;
+      }
+
+      if (n.fx !== null) {
+        n.x = n.fx;
+        n.y = n.fy;
+        n.vx = 0;
+        n.vy = 0;
+      } else {
+        n.x += n.vx;
+        n.y += n.vy;
+      }
+    }
   }
 
-  for (const n of nodes) {
+  // Pre-warm 80 iterations so graph renders already in equilibrium
+  for (let step = 0; step < 80; step++) {
+    const warmAlpha = Math.max(0.2, 1.0 - (step / 80) * 0.8);
+    runSimulationStep(warmAlpha);
+  }
+
+  const ns = "http://www.w3.org/2000/svg";
+
+  edges.forEach((e) => {
+    const line = document.createElementNS(ns, "line");
+    line.setAttribute("class", "graph-link");
+    line.setAttribute("x1", e.source.x);
+    line.setAttribute("y1", e.source.y);
+    line.setAttribute("x2", e.target.x);
+    line.setAttribute("y2", e.target.y);
+    linksGroup.appendChild(line);
+    e.el = line;
+  });
+
+  nodes.forEach((n) => {
     const g = document.createElementNS(ns, "g");
     g.setAttribute("class", "graph-node");
-    g.setAttribute("transform", `translate(${n.x},${n.y})`);
+    g.setAttribute("transform", `translate(${n.x}, ${n.y})`);
+    g.dataset.id = n.id;
+    g.dataset.type = n.type;
+
+    if (n.type === "overview" || n.degree >= hubThreshold) {
+      g.classList.add("has-label");
+    }
+
     const circle = document.createElementNS(ns, "circle");
     circle.setAttribute("r", n.r);
     circle.setAttribute("fill", colorFor(n.type));
-    if (n.type === "overview") circle.setAttribute("stroke", "#1c1b18");
+    if (n.type === "overview") {
+      circle.setAttribute("stroke", "#1c1b18");
+      circle.setAttribute("stroke-width", "2");
+    }
+
     const text = document.createElementNS(ns, "text");
-    text.setAttribute("x", n.r + 4);
-    text.setAttribute("y", 3);
+    text.setAttribute("x", n.r + 5);
+    text.setAttribute("y", 3.5);
     text.textContent = n.title;
+
     g.append(circle, text);
-    g.style.cursor = "pointer";
-    g.addEventListener("click", () => go(pageHash(state.currentWiki, n.id)));
-    svg.appendChild(g);
+    nodesGroup.appendChild(g);
+    n.el = g;
+  });
+
+  let transform = { x: 0, y: 0, k: 1 };
+
+  function updateTransform(smooth = false) {
+    if (smooth) {
+      container.style.transition = "transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)";
+      setTimeout(() => {
+        container.style.transition = "";
+      }, 300);
+    }
+    container.setAttribute(
+      "transform",
+      `translate(${transform.x}, ${transform.y}) scale(${transform.k})`
+    );
   }
+
+  function zoomBy(factor, cx = W / 2, cy = H / 2) {
+    const newK = Math.max(0.2, Math.min(4.5, transform.k * factor));
+    if (newK === transform.k) return;
+    const ratio = newK / transform.k;
+    transform.x = cx - (cx - transform.x) * ratio;
+    transform.y = cy - (cy - transform.y) * ratio;
+    transform.k = newK;
+    updateTransform();
+  }
+
+  function resetView() {
+    transform = { x: 0, y: 0, k: 1 };
+    updateTransform(true);
+    wakePhysics(0.3);
+  }
+
+  let alpha = 0.4;
+  let isRunning = true;
+  let animId = null;
+
+  function wakePhysics(intensity = 0.25) {
+    alpha = Math.max(alpha, intensity);
+    if (!isRunning) {
+      isRunning = true;
+      animId = requestAnimationFrame(tick);
+    }
+  }
+
+  function tick() {
+    if (!isRunning) return;
+
+    runSimulationStep(alpha);
+
+    for (let i = 0; i < nodes.length; i++) {
+      const n = nodes[i];
+      n.el.setAttribute("transform", `translate(${n.x}, ${n.y})`);
+    }
+
+    for (let i = 0; i < edges.length; i++) {
+      const e = edges[i];
+      e.el.setAttribute("x1", e.source.x);
+      e.el.setAttribute("y1", e.source.y);
+      e.el.setAttribute("x2", e.target.x);
+      e.el.setAttribute("y2", e.target.y);
+    }
+
+    alpha *= 0.975;
+    if (alpha < 0.002 && !activeDrag) {
+      isRunning = false;
+      animId = null;
+    } else {
+      animId = requestAnimationFrame(tick);
+    }
+  }
+
+  animId = requestAnimationFrame(tick);
+
+  let activeDrag = null;
+  let activePan = null;
+  const hiddenTypes = new Set();
+
+  function screenToGraphCoords(clientX, clientY) {
+    const rect = svg.getBoundingClientRect();
+    const x = (clientX - rect.left - transform.x) / transform.k;
+    const y = (clientY - rect.top - transform.y) / transform.k;
+    return { x, y };
+  }
+
+  nodes.forEach((n) => {
+    n.el.addEventListener("mousedown", (ev) => {
+      if (ev.button !== 0) return;
+      ev.stopPropagation();
+      const pt = screenToGraphCoords(ev.clientX, ev.clientY);
+      activeDrag = {
+        node: n,
+        startX: ev.clientX,
+        startY: ev.clientY,
+        moved: false,
+      };
+      n.fx = pt.x;
+      n.fy = pt.y;
+      wakePhysics(0.35);
+    });
+
+    n.el.addEventListener("mouseenter", (ev) => {
+      if (activeDrag || activePan) return;
+      container.classList.add("is-focus");
+      n.el.classList.add("node--highlight");
+
+      edges.forEach((e) => {
+        const isConnected = e.source.id === n.id || e.target.id === n.id;
+        if (isConnected) {
+          e.el.classList.add("link--highlight");
+          e.source.el.classList.add("node--highlight");
+          e.target.el.classList.add("node--highlight");
+        } else {
+          e.el.classList.add("is-dimmed");
+        }
+      });
+
+      nodes.forEach((other) => {
+        if (other.id !== n.id && !n.neighbors.has(other.id)) {
+          other.el.classList.add("is-dimmed");
+        }
+      });
+
+      const wrapRect = wrap.getBoundingClientRect();
+      const tooltipX = ev.clientX - wrapRect.left;
+      const tooltipY = ev.clientY - wrapRect.top;
+      tooltip.style.left = `${tooltipX}px`;
+      tooltip.style.top = `${tooltipY}px`;
+      tooltip.style.display = "block";
+      tooltip.innerHTML = `
+        <div class="graph-tooltip__title">${escapeHtml(n.title)}</div>
+        <div class="graph-tooltip__meta">
+          <span>${escapeHtml(n.type)}</span>
+          <span>${n.degree} link${n.degree === 1 ? "" : "s"}</span>
+        </div>
+      `;
+    });
+
+    n.el.addEventListener("mousemove", (ev) => {
+      if (tooltip.style.display !== "none") {
+        const wrapRect = wrap.getBoundingClientRect();
+        tooltip.style.left = `${ev.clientX - wrapRect.left}px`;
+        tooltip.style.top = `${ev.clientY - wrapRect.top}px`;
+      }
+    });
+
+    n.el.addEventListener("mouseleave", () => {
+      if (activeDrag) return;
+      clearHighlights();
+    });
+  });
+
+  function clearHighlights() {
+    container.classList.remove("is-focus");
+    nodes.forEach((n) => {
+      n.el.classList.remove("node--highlight", "is-dimmed");
+    });
+    edges.forEach((e) => {
+      e.el.classList.remove("link--highlight", "is-dimmed");
+    });
+    tooltip.style.display = "none";
+  }
+
+  svg.addEventListener("mousedown", (ev) => {
+    if (ev.button !== 0) return;
+    activePan = {
+      startMouseX: ev.clientX,
+      startMouseY: ev.clientY,
+      startTx: transform.x,
+      startTy: transform.y,
+    };
+    wrap.classList.add("is-panning");
+    clearHighlights();
+  });
+
+  const onMouseMove = (ev) => {
+    if (activeDrag) {
+      const dx = ev.clientX - activeDrag.startX;
+      const dy = ev.clientY - activeDrag.startY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+        activeDrag.moved = true;
+      }
+      const pt = screenToGraphCoords(ev.clientX, ev.clientY);
+      activeDrag.node.fx = pt.x;
+      activeDrag.node.fy = pt.y;
+      wakePhysics(0.2);
+    } else if (activePan) {
+      const dx = ev.clientX - activePan.startMouseX;
+      const dy = ev.clientY - activePan.startMouseY;
+      transform.x = activePan.startTx + dx;
+      transform.y = activePan.startTy + dy;
+      updateTransform();
+    }
+  };
+
+  const onMouseUp = () => {
+    if (activeDrag) {
+      const { node, moved } = activeDrag;
+      activeDrag = null;
+      node.fx = null;
+      node.fy = null;
+      wakePhysics(0.15);
+      if (!moved) {
+        go(pageHash(state.currentWiki, node.id));
+      }
+    }
+    if (activePan) {
+      activePan = null;
+      wrap.classList.remove("is-panning");
+    }
+  };
+
+  window.addEventListener("mousemove", onMouseMove);
+  window.addEventListener("mouseup", onMouseUp);
+
+  const onWheel = (ev) => {
+    ev.preventDefault();
+    const rect = svg.getBoundingClientRect();
+    const mouseX = ev.clientX - rect.left;
+    const mouseY = ev.clientY - rect.top;
+    const factor = ev.deltaY < 0 ? 1.12 : 0.88;
+    zoomBy(factor, mouseX, mouseY);
+  };
+  svg.addEventListener("wheel", onWheel, { passive: false });
+
+  const btnZoomIn = $("#graph-zoom-in");
+  const btnZoomOut = $("#graph-zoom-out");
+  const btnLabels = $("#graph-labels-toggle");
+  const btnReset = $("#graph-reset");
+  const btnReheat = $("#graph-reheat");
+
+  btnZoomIn?.addEventListener("click", () => zoomBy(1.25));
+  btnZoomOut?.addEventListener("click", () => zoomBy(0.8));
+  btnLabels?.addEventListener("click", () => {
+    const isAll = container.classList.toggle("show-all-labels");
+    btnLabels.classList.toggle("graph-btn--active", isAll);
+  });
+  btnReset?.addEventListener("click", resetView);
+  btnReheat?.addEventListener("click", () => wakePhysics(0.8));
+
+  const legendItems = $$(".graph-legend__item", wrap.parentElement);
+  legendItems.forEach((item) => {
+    item.addEventListener("click", () => {
+      const type = item.dataset.type;
+      if (hiddenTypes.has(type)) {
+        hiddenTypes.delete(type);
+        item.classList.remove("is-inactive");
+      } else {
+        hiddenTypes.add(type);
+        item.classList.add("is-inactive");
+      }
+
+      nodes.forEach((n) => {
+        const isHidden = hiddenTypes.has(n.type);
+        n.el.classList.toggle("is-hidden", isHidden);
+      });
+      edges.forEach((e) => {
+        const isHidden = hiddenTypes.has(e.source.type) || hiddenTypes.has(e.target.type);
+        e.el.classList.toggle("is-hidden", isHidden);
+      });
+      wakePhysics(0.3);
+    });
+  });
+
+  return {
+    destroy() {
+      if (animId) cancelAnimationFrame(animId);
+      isRunning = false;
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      svg.removeEventListener("wheel", onWheel);
+    },
+  };
 }
 
 // --- log + raw ---

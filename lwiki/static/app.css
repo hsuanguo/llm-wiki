@@ -374,32 +374,198 @@ button { font: inherit; cursor: pointer; }
   border: 1px solid var(--rule);
   background: var(--bg-paper);
   position: relative;
-  height: 520px;
+  height: 560px;
   overflow: hidden;
+  user-select: none;
+  cursor: grab;
 }
-.graph-wrap svg { width: 100%; height: 100%; display: block; }
+.graph-wrap.is-panning {
+  cursor: grabbing;
+}
+.graph-wrap svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Floating Graph Controls */
+.graph-controls {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 10;
+}
+.graph-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  font-family: "Helvetica Neue", "Inter", system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.15s ease;
+}
+.graph-btn:hover {
+  background: var(--ink);
+  color: var(--bg);
+  border-color: var(--ink);
+}
+.graph-btn.graph-btn--active {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
+/* Tooltip */
+.graph-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--ink);
+  color: var(--bg-paper);
+  padding: 8px 12px;
+  font-family: "Helvetica Neue", "Inter", system-ui, sans-serif;
+  font-size: 11px;
+  line-height: 1.4;
+  border-radius: 2px;
+  box-shadow: 0 4px 12px rgba(28, 27, 24, 0.25);
+  z-index: 20;
+  max-width: 260px;
+  transition: opacity 0.15s ease;
+  transform: translate(-50%, -125%);
+}
+.graph-tooltip__title {
+  font-weight: 600;
+  margin-bottom: 2px;
+  color: #fff;
+}
+.graph-tooltip__meta {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--rule);
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Legend with interactive filters */
 .graph-legend {
   display: flex;
-  gap: 18px;
-  margin-top: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
   font-family: "Helvetica Neue", "Inter", system-ui, sans-serif;
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ink-soft);
 }
+.graph-legend__item {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  transition: all 0.15s ease;
+}
+.graph-legend__item:hover {
+  border-color: var(--rule);
+  background: var(--bg-soft);
+}
+.graph-legend__item.is-inactive {
+  opacity: 0.35;
+  text-decoration: line-through;
+}
 .graph-legend .swatch {
   display: inline-block;
-  width: 10px; height: 10px;
+  width: 9px;
+  height: 9px;
   margin-right: 6px;
-  vertical-align: middle;
+  border-radius: 50%;
+}
+
+/* Graph Elements Styling & State Transitions */
+.graph-link {
+  stroke: var(--ink);
+  stroke-opacity: 0.12;
+  stroke-linecap: round;
+  stroke-width: 0.9px;
+  transition: stroke-opacity 0.2s ease, stroke-width 0.2s ease, stroke 0.2s ease;
+}
+.graph-link.link--highlight {
+  stroke: var(--accent-warm);
+  stroke-opacity: 0.85;
+  stroke-width: 1.8px;
+}
+
+.graph-node {
+  cursor: grab;
+  transition: opacity 0.2s ease;
+}
+.graph-node:active {
+  cursor: grabbing;
+}
+.graph-node circle {
+  stroke: transparent;
+  stroke-width: 1px;
+  transition: r 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), fill 0.2s ease, stroke-width 0.2s ease, filter 0.2s ease;
 }
 .graph-node text {
   font-family: "Helvetica Neue", "Inter", system-ui, sans-serif;
   font-size: 10px;
+  letter-spacing: 0.01em;
   fill: var(--ink);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease, font-weight 0.15s ease, fill 0.15s ease;
+  paint-order: stroke;
+  stroke: var(--bg-paper);
+  stroke-width: 3.5px;
+  stroke-linejoin: round;
 }
-.graph-link { stroke: var(--ink); stroke-opacity: 0.45; }
+
+/* Smart label mode: shows hubs; Show all mode: shows every label */
+.graph-node.has-label text,
+.graph-container.show-all-labels .graph-node text {
+  opacity: 0.88;
+}
+
+.graph-node:hover circle,
+.graph-node.node--highlight circle {
+  stroke: var(--ink);
+  stroke-width: 2px;
+  filter: drop-shadow(0 2px 5px rgba(28, 27, 24, 0.3));
+}
+.graph-node:hover text,
+.graph-node.node--highlight text {
+  opacity: 1 !important;
+  font-weight: 700;
+  fill: var(--ink);
+  stroke-width: 4px;
+}
+
+/* Dimmed state when focusing on a neighborhood */
+.graph-container.is-focus .graph-node.is-dimmed {
+  opacity: 0.12;
+}
+.graph-container.is-focus .graph-link.is-dimmed {
+  stroke-opacity: 0.03;
+}
+.graph-node.is-hidden,
+.graph-link.is-hidden {
+  display: none;
+}
 
 /* Log */
 .log {
