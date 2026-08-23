@@ -210,11 +210,20 @@ async function renderWikiSidebar(route) {
 
   // Update Vault archive links
   const graphLink = $('[data-action="graph"]');
-  if (graphLink) graphLink.href = `#/graph/${encodeURIComponent(route.wiki)}`;
+  if (graphLink) {
+    graphLink.href = `#/graph/${encodeURIComponent(route.wiki)}`;
+    graphLink.parentElement.classList.toggle("active", route.view === "graph");
+  }
   const logLink = $('[data-action="log"]');
-  if (logLink) logLink.href = `#/log/${encodeURIComponent(route.wiki)}`;
+  if (logLink) {
+    logLink.href = `#/log/${encodeURIComponent(route.wiki)}`;
+    logLink.parentElement.classList.toggle("active", route.view === "log");
+  }
   const rawLink = $('[data-action="raw"]');
-  if (rawLink) rawLink.href = `#/raw/${encodeURIComponent(route.wiki)}`;
+  if (rawLink) {
+    rawLink.href = `#/raw/${encodeURIComponent(route.wiki)}`;
+    rawLink.parentElement.classList.toggle("active", route.view === "raw");
+  }
 }
 
 async function renderContent(route) {
