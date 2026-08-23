@@ -32,13 +32,13 @@ lwiki init ~/wikis/greek-history --domain "Greek history" --sources "articles, p
 lwiki serve --root ~/wikis
 # open http://127.0.0.1:8765
 
-# 5. Validate OKF 0.2 conformance
+# 5. Validate OKF conformance
 cd ~/wikis/greek-history && lwiki validate
 ```
 
 ## The Bundle Layout
 
-`lwiki init` scaffolds an OKF 0.2 bundle — the bundle IS the wiki:
+`lwiki init` scaffolds an OKF bundle — the bundle IS the wiki:
 
 ```
 my-wiki/
@@ -57,7 +57,7 @@ my-wiki/
 
 There is no `wiki/` wrapper. The bundle is the wiki.
 
-## OKF 0.2 Frontmatter
+## OKF Frontmatter
 
 Only `|type` is strictly required. The rest is recommended.
 
@@ -167,7 +167,7 @@ When new sources affect existing pages, the agent updates them automatically if 
 Lint the wiki
 ```
 
-The agent runs `lwiki validate` for OKF 0.2 conformance and then checks:
+The agent runs `lwiki validate` for OKF conformance and then checks:
 
 | Category | Auto-fixed? | Examples |
 |----------|-------------|---------|
@@ -206,10 +206,10 @@ If you have an existing wiki with a `wiki/` wrapper and `[[wikilinks]]`:
 ```bash
 lwiki migrate ~/old-wiki --out ~/new-bundle
 # the source wiki is untouched; the bundle is emitted alongside
-# all frontmatter is migrated to OKF 0.2; [[wikilinks]] are rewritten to markdown links
+# all frontmatter is migrated to OKF; [[wikilinks]] are rewritten to markdown links
 ```
 
-After migration, `lwiki validate ~/new-bundle` confirms OKF 0.2 conformance.
+After migration, `lwiki validate ~/new-bundle` confirms OKF conformance.
 
 ## CLI Reference
 
@@ -217,7 +217,7 @@ After migration, `lwiki validate ~/new-bundle` confirms OKF 0.2 conformance.
 |---------|---------|
 | `lwiki init <dir> --domain "..."` | Scaffold an OKF bundle |
 | `lwiki structure` | Print the canonical bundle layout |
-| `lwiki validate <dir>` | Check OKF 0.2 conformance |
+| `lwiki validate <dir>` | Check OKF conformance |
 | `lwiki serve --root <parent>` | Web UI over all bundles under `<parent>` |
 | `lwiki raw sync` / `lwiki raw status` | Track `raw/files.log` |
 | `lwiki migrate <old> --out <new>` | Convert a legacy wiki to an OKF bundle |

@@ -117,7 +117,7 @@ def test_init_root_index_has_okf_version(tmp_path: Path) -> None:
 
 
 def test_init_agents_md_documents_okf_contract(tmp_path: Path) -> None:
-    """AGENTS.md must declare the OKF 0.2 frontmatter contract so non-LLM
+    """AGENTS.md must declare the OKF frontmatter contract so non-LLM
     consumers see the schema up front."""
     target = tmp_path / "b5"
     runner.invoke(app, ["init", str(target), "-d", "Test"])

@@ -138,7 +138,7 @@ function renderWikisOverview(wikis) {
   c.innerHTML = `
     <div class="page-eyebrow">All wikis · ${wikis.length} vault${wikis.length === 1 ? "" : "s"}</div>
     <h1 class="page-title">Your knowledge, indexed.</h1>
-    <div class="page-meta"><span>OKF 0.2 ready</span><span>obsidian-compatible</span><span>${total} pages total</span></div>
+    <div class="page-meta"><span>OKF ready</span><span>obsidian-compatible</span><span>${total} pages total</span></div>
 
     <div class="stats">
       ${statBlock("Concepts", concepts, `${concepts === 0 ? "—" : "compound ideas across the vault"}`, concepts > 0 ? "accent" : "")}

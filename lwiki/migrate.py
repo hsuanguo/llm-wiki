@@ -1,4 +1,4 @@
-"""Convert an Obsidian-shaped llm-wiki into an OKF 0.2 bundle.
+"""Convert an Obsidian-shaped llm-wiki into an OKF bundle.
 
 Legacy shape (pre-2.0):
 
@@ -85,7 +85,7 @@ def _is_iso_date(value: Any) -> str | None:
 
 
 def _migrate_frontmatter(fm: dict, today: str) -> dict:
-    """Rewrite legacy frontmatter into OKF 0.2 shape."""
+    """Rewrite legacy frontmatter into OKF shape."""
     out: dict = {}
 
     # Preserve OKF-native fields unchanged.

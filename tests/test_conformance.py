@@ -1,4 +1,4 @@
-"""Tests for the OKF 0.2 conformance validator."""
+"""Tests for the OKF conformance validator."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from lwiki.conformance import (
 
 
 def _make_bundle(root: Path) -> None:
-    """Build a minimal OKF 0.2 bundle: root index + overview + a concept."""
+    """Build a minimal OKF bundle: root index + overview + a concept."""
     (root / "index.md").write_text(
         "---\nokf_version: '0.2'\n---\n\n# Bundle Index\n",
         encoding="utf-8",

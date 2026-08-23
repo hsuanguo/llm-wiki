@@ -67,7 +67,7 @@ All structural operations use the **`lwiki`** CLI. Never hand-edit `files.log` o
 | Bootstrap files + dirs | `lwiki init <bundle-root> --domain "..." --sources "..."` |
 | Refresh `raw/files.log` | `lwiki raw sync` (or `lwiki checkout`) |
 | Report drift (no write) | `lwiki raw status` |
-| Check OKF 0.2 conformance | `lwiki validate` |
+| Check OKF conformance | `lwiki validate` |
 | Browse / edit in browser | `lwiki serve --root <parent-of-bundles>` |
 | Convert a legacy Obsidian-shaped wiki | `lwiki migrate <old-wiki> --out <new-bundle>` |
 | Rewrite legacy `[[wikilinks]]` in place | `lwiki.wikilink_rewrite.rewrite_bundle(bundle_dir: Path, *, absolute_links=False, write=True)` (Python API; both kwargs optional) |
@@ -79,7 +79,7 @@ Page templates are in `templates/` — read the relevant template before creatin
 - [templates/concept.md](templates/concept.md) — concept pages
 - [templates/entity.md](templates/entity.md) — entity pages
 - [templates/insight.md](templates/insight.md) — insights (point-in-time snapshots, NOT cascade-updated)
-- [templates/attested-computation.md](templates/attested-computation.md) — OKF 0.2 attested computations (OKF §4.2)
+- [templates/attested-computation.md](templates/attested-computation.md) — OKF attested computations (OKF §4.2)
 - [templates/root-index.md](templates/root-index.md) — bundle-root `index.md` (frontmatter `okf_version`)
 - [templates/directory-index.md](templates/directory-index.md) — per-directory index (`summaries/index.md`, `concepts/index.md`, etc.)
 
@@ -113,5 +113,5 @@ Surface these to the user when relevant (e.g., during INIT, first ingest, or whe
 
 - **Obsidian Web Clipper** browser extension is the best way to capture web articles — bypasses anti-scraping etc.
 - **`lwiki serve`** runs a zero-dep web UI over the same bundle — handy when you want to browse or edit without launching a separate tool.
-- **`lwiki validate`** checks OKF 0.2 conformance; wire it into CI before publishing a bundle.
+- **`lwiki validate`** checks OKF conformance; wire it into CI before publishing a bundle.
 - You never write bundle pages yourself — AI handles all the maintenance.

@@ -2,7 +2,7 @@
 
 <p align="center">
   <img src="assets/logo.svg" alt="llm-wiki" width="480" /><br />
-  <sub>基于 OKF 0.2 的个人知识库，与你共同成长</sub>
+  <sub>基于 OKF 的个人知识库，与你共同成长</sub>
 </p>
 
 一个与你共同成长的 OKF 原生知识库。灵感来自 [Karpathy 的 LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)。**bundle 就是 wiki**——没有独立的"导出"步骤。
@@ -32,13 +32,13 @@ lwiki init ~/wikis/greek-history --domain "Greek history" --sources "articles, p
 lwiki serve --root ~/wikis
 # 访问 http://127.0.0.1:8765
 
-# 5. 校验 OKF 0.2 一致性
+# 5. 校验 OKF 一致性
 cd ~/wikis/greek-history && lwiki validate
 ```
 
 ## Bundle 结构
 
-`lwiki init` 直接搭建一个 OKF 0.2 bundle——bundle 就是 wiki：
+`lwiki init` 直接搭建一个 OKF bundle——bundle 就是 wiki：
 
 ```
 my-wiki/
@@ -57,7 +57,7 @@ my-wiki/
 
 没有 `wiki/` 包装层。bundle 就是 wiki。
 
-## OKF 0.2 Frontmatter
+## OKF Frontmatter
 
 仅 `type` 是强制要求的，其他字段是建议性的。
 
@@ -167,7 +167,7 @@ Agent 会为每个页面展示差异对比，等待你确认后再写入。
 检查 wiki
 ```
 
-Agent 会先运行 `lwiki validate` 做 OKF 0.2 一致性检查，然后排查：
+Agent 会先运行 `lwiki validate` 做 OKF 一致性检查，然后排查：
 
 | 类别 | 自动修复？ | 示例 |
 |------|-----------|------|
@@ -206,10 +206,10 @@ lwiki raw sync      # 更新 files.log
 ```bash
 lwiki migrate ~/old-wiki --out ~/new-bundle
 # 源 wiki 保持原样；bundle 输出到新位置
-# 所有 frontmatter 迁移到 OKF 0.2；[[wikilinks]] 被改写为 markdown 链接
+# 所有 frontmatter 迁移到 OKF；[[wikilinks]] 被改写为 markdown 链接
 ```
 
-迁移完成后，用 `lwiki validate ~/new-bundle` 确认 OKF 0.2 一致性。
+迁移完成后，用 `lwiki validate ~/new-bundle` 确认 OKF 一致性。
 
 ## CLI 命令速查
 
@@ -217,7 +217,7 @@ lwiki migrate ~/old-wiki --out ~/new-bundle
 |---------|---------|
 | `lwiki init <dir> --domain "..."` | 搭建 OKF bundle |
 | `lwiki structure` | 打印标准 bundle 结构 |
-| `lwiki validate <dir>` | 校验 OKF 0.2 一致性 |
+| `lwiki validate <dir>` | 校验 OKF 一致性 |
 | `lwiki serve --root <parent>` | Web UI，浏览 `<parent>` 下所有 bundle |
 | `lwiki raw sync` / `lwiki raw status` | 跟踪 `raw/files.log` |
 | `lwiki migrate <old> --out <new>` | 从旧 wiki 转换为 OKF bundle |

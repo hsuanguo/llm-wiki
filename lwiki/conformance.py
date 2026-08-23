@@ -1,4 +1,4 @@
-"""OKF 0.2 conformance validator.
+"""OKF conformance validator.
 
 This module is the canonical reference for what an OKF-native bundle must
 look like on disk. It is consumed by:
@@ -260,7 +260,7 @@ def _check_one_file(path: Path, rel: str) -> list[Violation]:
             )
         )
 
-    # Optional OKF 0.2 fields — only validate when present.
+    # Optional OKF fields — only validate when present.
     if "generated" in fm:
         out.extend(_check_generated(fm.get("generated"), rel))
     if "sources" in fm:
@@ -284,7 +284,7 @@ def _check_generated(value: Any, rel: str) -> list[Violation]:
             Violation(
                 Level.ERROR,
                 "generated.malformed",
-                "'generated' must be a mapping with 'by' and 'at' (OKF 0.2 §breaking)",
+                "'generated' must be a mapping with 'by' and 'at' (OKF §breaking)",
                 path=rel,
             )
         ]
@@ -395,7 +395,7 @@ def _check_status(value: Any, rel: str) -> list[Violation]:
 
 
 def _check_attested_computation(fm: dict, rel: str) -> list[Violation]:
-    """OKF 0.2 attested-computation type requires a small key set."""
+    """OKF attested-computation type requires a small key set."""
     required = ("runtime", "parameters", "computation", "executor", "attester")
     out: list[Violation] = []
     for key in required:

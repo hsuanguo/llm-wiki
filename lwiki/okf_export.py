@@ -2,17 +2,16 @@
 
 The exporter is read-only on the source wiki: it walks ``wiki/``, rewrites
 ``[[wikilinks]]`` to bundle-relative markdown links, normalizes frontmatter
-into OKF 0.2's recommended shape, and emits per-directory ``index.md`` files
+into OKF's recommended shape, and emits per-directory ``index.md`` files
 in the OKF bullet-list format. It is the counterpart to the Obsidian-first
 templates in ``skills/llm-wiki/templates/``: llm-wiki stays Obsidian-native,
 OKF is the publishable projection.
 
-OKF 0.2 breaking changes vs 0.1 are reflected here:
+OKF breaking changes are reflected here:
   * Content's last-change moves from ``timestamp`` to ``generated: {by, at}``
   * Bundle root ``index.md`` declares ``okf_version: "0.2"``
   * Per-source credibility signals live in the frontmatter ``sources`` list
-    (the wiki-internal raw-file lineage is dropped from the bundle, the
-    same way 0.1 dropped ``sources``/``cited``).
+    (the wiki-internal raw-file lineage is dropped from the bundle).
 
 Reference: https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md
 """
@@ -29,10 +28,10 @@ import yaml
 # root; OKF does not require any specific hierarchy.
 WIKI_SUBDIRS: tuple[str, ...] = ("summaries", "concepts", "entities", "insights")
 
-# OKF 0.2 — declared on the bundle-root index.md frontmatter.
+# OKF — declared on the bundle-root index.md frontmatter.
 OKF_VERSION = "0.2"
 
-# OKF 0.2 actor convention for `generated.by`. Tools are ``<name>/<version>``.
+# OKF actor convention for `generated.by`. Tools are ``<name>/<version>``.
 GENERATED_BY = "llm-wiki/0.2"
 
 # Match [[slug]] or [[slug|display]], with optional #anchor. Group 1 is the
@@ -58,7 +57,7 @@ class ConceptRecord:
 
 
 def build_generated(timestamp: str, by: str = GENERATED_BY) -> dict[str, str]:
-    """OKF 0.2 ``generated: { by, at }`` mapping.
+    """OKF ``generated: { by, at }`` mapping.
 
     Returns an empty dict when ``timestamp`` is empty so concept pages with
     no date still get a clean frontmatter block.
@@ -179,7 +178,7 @@ def rewrite_wikilinks(
 ) -> tuple[str, int, list[str], list[str]]:
     """Rewrite ``[[slug]]`` and ``[[slug|display]]`` to OKF markdown links.
 
-    OKF 0.2 §6.1 allows both absolute (bundle-root, e.g. ``/concepts/rag.md``)
+    OKF §6.1 allows both absolute (bundle-root, e.g. ``/concepts/rag.md``)
     and file-relative (``../concepts/rag.md``) link forms. Absolute is the
     spec-recommended default and is what ``absolute_links=True`` emits.
 

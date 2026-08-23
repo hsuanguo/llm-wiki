@@ -8,8 +8,8 @@ sources:
     last_modified: <YYYY-MM-DD>
 resource: <optional canonical URI for the underlying asset>
 generated:
-  by: <actor convention: name/version, human:id, or process:id>
-  at: <YYYY-MM-DD>
+  by: "<actor convention: name/version, human:id, or process:id>"
+  at: "<YYYY-MM-DD>"
 status: draft
 ---
 
