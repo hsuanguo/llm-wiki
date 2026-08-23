@@ -35,6 +35,7 @@ from .okf_export import parse_frontmatter
 from .raw_tracker import run_raw_status, run_raw_sync
 
 WIKI_SUBDIRS: tuple[str, ...] = ("summaries", "concepts", "entities", "insights")
+SUBDIR_NON_CONCEPT_FILENAMES: frozenset[str] = frozenset({"index.md", "README.md"})
 WIKILINK_RE = re.compile(r"\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]")
 # Standard markdown link: `[text](path)` — captures the path. Leading
 # whitespace inside the text is allowed.
@@ -158,7 +159,9 @@ def _count_pages(wiki_dir: Path) -> dict[str, int]:
         sub_dir = wiki_dir / sub
         if not sub_dir.is_dir():
             continue
-        counts[sub] = sum(1 for _ in sub_dir.glob("*.md"))
+        counts[sub] = sum(
+            1 for p in sub_dir.glob("*.md") if p.name not in SUBDIR_NON_CONCEPT_FILENAMES
+        )
     counts["total"] = sum(counts.values())
     return counts
 
@@ -174,6 +177,8 @@ def list_pages(wiki_dir: Path) -> list[dict[str, Any]]:
         if not sub_dir.is_dir():
             continue
         for md in sorted(sub_dir.glob("*.md")):
+            if md.name in SUBDIR_NON_CONCEPT_FILENAMES:
+                continue
             pages.append(_page_meta(md, sub, wiki_dir))
     return pages
 
