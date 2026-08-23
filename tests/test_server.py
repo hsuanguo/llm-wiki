@@ -14,6 +14,7 @@ import pytest
 from lwiki.server import (
     ServerConfig,
     _Handler,
+    _count_pages,
     build_graph,
     delete_page,
     list_pages,
@@ -142,6 +143,48 @@ def test_list_pages_includes_overview_and_concepts(server_setup) -> None:
     assert "overview.md" in rels
     assert "concepts/democracy.md" in rels
     assert "entities/athens.md" in rels
+
+
+def test_list_pages_and_counts_ignore_subdir_indexes_and_readmes(server_setup) -> None:
+    _, wiki, _ = server_setup
+    (wiki / "concepts" / "README.md").write_text("# Concepts Index\n", encoding="utf-8")
+    (wiki / "concepts" / "index.md").write_text("# Concepts Index\n", encoding="utf-8")
+    (wiki / "summaries").mkdir(exist_ok=True)
+    (wiki / "summaries" / "README.md").write_text("# Summaries Index\n", encoding="utf-8")
+
+    pages = list_pages(wiki)
+    rels = {p["rel_path"] for p in pages}
+    assert "concepts/README.md" not in rels
+    assert "concepts/index.md" not in rels
+    assert "summaries/README.md" not in rels
+
+    counts = _count_pages(wiki)
+    assert counts["concepts"] == 1  # only democracy.md
+    assert counts["summaries"] == 0
+
+    (wiki / "concepts" / "democracy.md").write_text(
+        "---\ntitle: Democracy\ntype: concept\n"
+        "description: Athenian democracy.\ntags: [politics]\n"
+        "generated: { by: 'lwiki/0.2', at: '2026-01-02' }\n---\n\n"
+        "Refers to [athens](../entities/athens.md), [index](../index.md), [readme](../README.md), "
+        "and [local index](index.md), plus [[index]] and [[README]].\n",
+        encoding="utf-8",
+    )
+
+    graph = build_graph(wiki)
+    node_ids = {node["id"] for node in graph["nodes"]}
+    assert "concepts/README.md" not in node_ids
+    assert "concepts/index.md" not in node_ids
+    assert "summaries/README.md" not in node_ids
+    assert "README.md" not in node_ids
+    assert "index.md" not in node_ids
+
+    # Edges should only connect valid concept pages (democracy -> athens)
+    for edge in graph["edges"]:
+        assert edge["source"] in node_ids
+        assert edge["target"] in node_ids
+        assert not edge["target"].endswith("index.md")
+        assert not edge["target"].endswith("README.md")
 
 
 def test_read_and_write_page_round_trip(server_setup) -> None:
