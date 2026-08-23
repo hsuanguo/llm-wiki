@@ -144,10 +144,10 @@ def migrate_cmd(
         help="Overwrite an existing non-empty output directory",
     ),
 ) -> None:
-    """Convert a legacy Obsidian-shaped wiki into an OKF 0.2 bundle.
+    """Convert a legacy Obsidian-shaped wiki into an OKF bundle.
 
     The source wiki is read-only. ``out`` becomes the OKF bundle — concepts
-    lifted to the bundle root, frontmatter migrated to OKF 0.2, any
+    lifted to the bundle root, frontmatter migrated to OKF, any
     leftover ``[[wikilinks]]`` rewritten to standard markdown links.
     """
     from .migrate import convert
@@ -176,7 +176,7 @@ def validate_cmd(
         exists=False,
     ),
 ) -> None:
-    """Check OKF 0.2 conformance. Exit 0 if conformant, non-zero otherwise."""
+    """Check OKF conformance. Exit 0 if conformant, non-zero otherwise."""
     from .conformance import is_conformant, validate_bundle
 
     violations = validate_bundle(bundle.resolve())
@@ -186,7 +186,7 @@ def validate_cmd(
         typer.echo(f"{prefix} {v.code}{where} - {v.message}")
     if not is_conformant(violations):
         raise typer.Exit(1)
-    typer.echo(f"OK: {bundle} conforms to OKF 0.2.")
+    typer.echo(f"OK: {bundle} conforms to OKF.")
 
 
 @app.command("init")
@@ -263,11 +263,11 @@ def export_okf_cmd(
         exists=False,
     ),
 ) -> None:
-    """Verify OKF 0.2 conformance of the bundle (no transformation).
+    """Verify OKF conformance of the bundle (no transformation).
 
     This command used to project an Obsidian-shaped wiki into an OKF bundle.
     llm-wiki is now 100% OKF-native — the bundle IS the wiki — so the
-    command's new role is to **validate** conformance against the OKF 0.2
+    command's new role is to **validate** conformance against the OKF
     spec. Use ``lwiki migrate`` to convert a legacy Obsidian-shaped wiki.
     """
     from .conformance import is_conformant, validate_bundle
@@ -279,7 +279,7 @@ def export_okf_cmd(
         typer.echo(f"{prefix} {v.code}{where} - {v.message}")
     if not is_conformant(violations):
         raise typer.Exit(1)
-    typer.echo(f"OK: {bundle} conforms to OKF 0.2.")
+    typer.echo(f"OK: {bundle} conforms to OKF.")
 
 
 if __name__ == "__main__":

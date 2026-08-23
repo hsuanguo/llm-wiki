@@ -80,7 +80,7 @@ def test_smoke_full_flow(tmp_path: Path) -> None:
     for sub in ("summaries", "concepts", "entities", "insights", "raw"):
         assert (bundle / sub).is_dir(), sub
 
-    # 2. CONFORMANCE — scaffolded bundle passes OKF 0.2
+    # 2. CONFORMANCE — scaffolded bundle passes OKF
     violations = validate_bundle(bundle)
     assert is_conformant(violations), violations
 

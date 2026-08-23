@@ -1,4 +1,4 @@
-"""Canonical OKF 0.2 bundle layout (INIT). Kept in sync with the wiki skill SKILL.md."""
+"""Canonical OKF bundle layout (INIT). Kept in sync with the wiki skill SKILL.md."""
 
 from .okf_export import OKF_VERSION
 

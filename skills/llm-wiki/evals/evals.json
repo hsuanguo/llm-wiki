@@ -4,7 +4,7 @@
     {
       "id": 1,
       "prompt": "I want to start a personal knowledge base for tracking what I'm learning about Greek philosophy (the pre-Socratics through Aristotle). Set it up at ./wiki/greek-philosophy under my home directory. I mostly read books and PDFs.",
-      "expected_output": "An OKF 0.2 bundle is bootstrapped at ./wiki/greek-philosophy by running `lwiki init ./wiki/greek-philosophy --domain \"<one-sentence purpose>\" --sources \"books, pdfs\"` from the parent directory. The bundle contains index.md declaring okf_version: \"0.2\", log.md with the first init entry, overview.md, AGENTS.md, CLAUDE.md, README.md, the concept subdirs (summaries/, concepts/, entities/, insights/), and an initial raw/files.log produced by `lwiki raw sync`. The skill must NOT hand-create files or invent a different directory tree — it must defer to `lwiki structure` as the single source of truth.",
+      "expected_output": "An OKF bundle is bootstrapped at ./wiki/greek-philosophy by running `lwiki init ./wiki/greek-philosophy --domain \"<one-sentence purpose>\" --sources \"books, pdfs\"` from the parent directory. The bundle contains index.md declaring okf_version: \"0.2\", log.md with the first init entry, overview.md, AGENTS.md, CLAUDE.md, README.md, the concept subdirs (summaries/, concepts/, entities/, insights/), and an initial raw/files.log produced by `lwiki raw sync`. The skill must NOT hand-create files or invent a different directory tree — it must defer to `lwiki structure` as the single source of truth.",
       "files": [],
       "expectations": [
         "The skill runs `lwiki init <path> --domain \"...\"` rather than hand-creating files and directories",

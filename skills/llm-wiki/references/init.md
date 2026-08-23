@@ -30,9 +30,9 @@ That command creates the directories, **`index.md`** (declares `okf_version: "0.
 
 **Implemented by `lwiki init`** — same content shapes as this skill and [templates/root-index.md](../templates/root-index.md):
 
-- **`AGENTS.md`** — `# <Domain> Wiki Schema` with **Domain**,** **Source Types** (from `--sources` or default), and **Conventions** (frontmatter contract — required/recommended/optional tiers, OKF 0.2 fields, no `[[wikilinks]]`, immutable `raw/`, append-only `log.md`, forward-reference tolerance, co-evolving schema). This is the file to edit for schema changes (also consumed by other agents).
+- **`AGENTS.md`** — `# <Domain> Wiki Schema` with **Domain**,** **Source Types** (from `--sources` or default), and **Conventions** (frontmatter contract — required/recommended/optional tiers, OKF fields, no `[[wikilinks]]`, immutable `raw/`, append-only `log.md`, forward-reference tolerance, co-evolving schema). This is the file to edit for schema changes (also consumed by other agents).
 - **`CLAUDE.md`** — Fixed stub: `@AGENTS.md` plus a short note so Claude Code loads the same OKF-native conventions.
-- **`README.md`** — Short pointer doc that names the bundle as OKF 0.2 and points to `lwiki serve` / `lwiki validate` / `lwiki migrate`.
+- **`README.md`** — Short pointer doc that names the bundle as OKF and points to `lwiki serve` / `lwiki validate` / `lwiki migrate`.
 - **`index.md`** — frontmatter `okf_version: "0.2"`; the OKF spec reserves frontmatter here and only here.
 - **`log.md`** — header + first `## [date] init | <domain>` entry.
 - **`overview.md`** — frontmatter (`type: overview`, `generated: { by, at }`, `status: draft`) + empty "Current Understanding" / "Open Questions" sections.
