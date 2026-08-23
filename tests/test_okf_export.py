@@ -207,20 +207,20 @@ def test_export_root_index_has_okf_version(tmp_path: Path) -> None:
     export_okf(wiki, bundle)
     text = (bundle / "index.md").read_text(encoding="utf-8")
     # okf_version declared as the only place frontmatter is allowed in index.md.
-    # OKF 0.2 bumped from "0.1" — see SPEC.md breaking changes.
+    # See SPEC.md breaking changes.
     assert text.startswith("---\n")
     assert "okf_version: '0.2'" in text or 'okf_version: "0.2"' in text
 
 
 def test_export_concept_uses_okf02_generated_mapping(tmp_path: Path) -> None:
-    """OKF 0.2: last-change moves from ``timestamp`` to ``generated: {by, at}``."""
+    """OKF: last-change moves from ``timestamp`` to ``generated: {by, at}``."""
     wiki = tmp_path / "wiki"
     bundle = tmp_path / "bundle"
     _make_sample_wiki(wiki)
     export_okf(wiki, bundle)
     rag = (bundle / "concepts" / "rag.md").read_text(encoding="utf-8")
     fm = parse_frontmatter(rag)[0]
-    # New mapping is present and shaped per OKF 0.2.
+    # New mapping is present and shaped per OKF.
     assert "timestamp" not in fm
     assert isinstance(fm.get("generated"), dict)
     assert fm["generated"]["by"] == "llm-wiki/0.2"
@@ -388,7 +388,7 @@ def test_wikilink_regex_matches() -> None:
         assert m.group(2) == expected_display
 
 
-# --- relative links (OKF 0.2 §6.1) ---
+# --- relative links (OKF §6.1) ---
 
 
 def test_relative_path_helper() -> None:

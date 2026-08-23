@@ -217,7 +217,7 @@ def _resolve_page_path(wiki_dir: Path, rel: str) -> Path:
 def _enforce_okf_frontmatter(frontmatter: dict, rel: str) -> None:
     """Reject legacy wiki-internal fields on writes.
 
-    OKF 0.2 replaces wiki-internal `updated:`, `sources: [paths]`, and
+    OKF replaces wiki-internal `updated:`, `sources: [paths]`, and
     `cited:` shapes with `generated.{by,at}`, `sources` credibility list,
     and `verified` audit trail. Surface a clear error so the editor can
     migrate the field shape.

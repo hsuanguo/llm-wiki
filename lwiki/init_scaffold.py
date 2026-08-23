@@ -1,4 +1,4 @@
-"""Scaffold a new OKF 0.2 bundle (``lwiki init``).
+"""Scaffold a new OKF bundle (``lwiki init``).
 
 The on-disk shape is a single OKF bundle — no ``wiki/`` wrapper.
 Conventions are documented in ``AGENTS.md`` at the bundle root, and
@@ -16,7 +16,7 @@ from .raw_tracker import run_raw_sync
 # Default for AGENTS.md "Source Types" when `lwiki init` is run without `--sources`.
 DEFAULT_SOURCE_TYPES = "articles, URLs, papers"
 
-# Generator identifier for OKF 0.2 ``generated.by`` on scaffolded pages.
+# Generator identifier for OKF ``generated.by`` on scaffolded pages.
 GENERATED_BY = f"lwiki/{OKF_VERSION}"
 
 # Thin CLAUDE.md for Claude Code: imports AGENTS.md so Claude Code loads the
@@ -55,7 +55,7 @@ markdown links (no `[[wikilinks]]`).
 ## Source Types
 {source_types}
 
-## Frontmatter contract (OKF 0.2)
+## Frontmatter contract (OKF)
 
 Only `type` is strictly required by the OKF spec; the rest is recommended
 for a richer authoring experience and round-trips cleanly through the
@@ -141,7 +141,7 @@ status: draft
 def render_readme(domain: str) -> str:
     return f"""# {domain}
 
-This directory is an [OKF 0.2](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)
+This directory is an [OKF](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)
 knowledge bundle. Edit it directly — there is no separate "export" step.
 The bundle is the wiki.
 
@@ -165,7 +165,7 @@ def init_wiki_tree(
     source_types: str,
     force: bool,
 ) -> None:
-    """Create an OKF 0.2 bundle at ``bundle_root``.
+    """Create an OKF bundle at ``bundle_root``.
 
     Hard cut from the legacy ``wiki/`` wrapper: concepts live at the bundle
     root, `AGENTS.md` stays at the root, `raw/files.log` is created for
